@@ -113,6 +113,23 @@ Con la edición abierta: `S` seleccionar, `M` mover, `N` nudo, `T` tubería, `K`
 - No atiende pedidos de otras páginas: el servidor solo responde a su propia ventana (127.0.0.1), así que una página
   de internet no puede correr scripts ni tocar archivos a través de él.
 
+## Actualizaciones
+
+El código está en GitHub: https://github.com/Nexconker/cauce (público). Cada vez que se abre, Cauce lee la versión
+publicada y, si es más nueva que la suya (archivo `VERSION`), baja esa versión, la instala encima y arranca la nueva;
+al entrar avisa «Cauce se actualizó a la versión…». No toca `trabajo/` (configuración, escenarios, scripts de cada
+persona) ni `lib/` (los paquetes que instaló «Instalar Cauce.bat»). Sin internet abre la versión que tenga. Una
+carpeta con `.git` (la de desarrollo) no se actualiza sola. Para apagarla: variable `CAUCE_SIN_ACTUALIZAR=1` o
+`"actualizar": false` en `trabajo/config.json`.
+
+Publicar una versión (desde la carpeta del repositorio, con git y acceso a la cuenta):
+
+    python -I scripts/publicar.py 1.2.0 "Qué cambió"
+
+Sube a la vez el commit, la etiqueta `v1.2.0` y el release; los Cauce instalados la toman la próxima vez que se abran.
+Si una versión necesita un paquete nuevo de Python, hay que volver a correr «Instalar Cauce.bat» (la actualización
+solo cambia los archivos de Cauce).
+
 ## Marca
 
 Identidad de Nex-Industries: rojo, negro y blanco, con el logo hexagonal (variante de seis ranuras). El logo se

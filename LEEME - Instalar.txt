@@ -7,6 +7,7 @@ QUÉ NECESITAS
 - Python 3.12 o más nuevo. Si no lo tienes, el instalador te ofrece ponerlo.
 
 CÓMO SE INSTALA
+0. Baja la última versión de https://github.com/Nexconker/cauce/releases/latest («Source code (zip)»).
 1. Descomprime el zip en una carpeta donde se vaya a quedar, por ejemplo en Documentos.
    No lo abras desde dentro del zip.
 2. Abre "Instalar Cauce.bat".
@@ -24,6 +25,11 @@ CÓMO SE USA
 SI ALGO FALLA
 - "Iniciar Cauce.bat" abre Cauce con una ventana negra que muestra el error.
 - Si la ventana de Cauce no abre, Cauce se abre en el navegador Edge; funciona igual.
+
+ACTUALIZACIONES
+- Cauce se actualiza solo: al abrirlo busca una versión nueva en GitHub y, si la hay, la instala antes de arrancar
+  (avisa al entrar). Tus escenarios, scripts y configuración (la carpeta trabajo) no se tocan.
+- Sin internet abre la versión que tengas.
 
 PARA DESINSTALAR
 - Borra esta carpeta y los dos accesos directos "Cauce".
