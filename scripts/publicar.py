@@ -47,10 +47,13 @@ def main():
     git('tag', '-a', f'v{nueva}', '-m', f'Cauce {nueva}: {nota}')
     git('push', '--atomic', 'origin', 'main', f'refs/tags/v{nueva}')
     print(f'Publicada la versión {nueva}. Cada Cauce instalado la baja la próxima vez que se abra.')
-    if shutil.which('gh'):
-        r = subprocess.run(['gh', 'release', 'create', f'v{nueva}', '--title', f'Cauce {nueva}', '--notes', nota],
+    # gh puede no estar en el PATH de una consola abierta antes de instalarlo
+    gh = shutil.which('gh') or next((p for p in (r'C:\Program Files\GitHub CLI\gh.exe',) if os.path.isfile(p)), None)
+    if gh:
+        r = subprocess.run([gh, 'release', 'create', f'v{nueva}', '--title', f'Cauce {nueva}', '--notes', nota],
                            cwd=RAIZ, capture_output=True, text=True, encoding='utf-8')
         print(r.stdout.strip() or r.stderr.strip())
+    print('GitHub puede tardar unos minutos en mostrar la versión nueva a los Cauce instalados (caché de raw.githubusercontent).')
 
 
 if __name__ == '__main__':
