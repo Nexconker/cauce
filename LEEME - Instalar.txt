@@ -1,0 +1,29 @@
+CAUCE · Nex-Industries
+Un EPANET más claro para revisar, correr y comparar modelos de redes de agua (.inp), en tu propio PC.
+
+QUÉ NECESITAS
+- Windows 10 u 11.
+- Internet la primera vez (para instalar lo que falte).
+- Python 3.12 o más nuevo. Si no lo tienes, el instalador te ofrece ponerlo.
+
+CÓMO SE INSTALA
+1. Descomprime el zip en una carpeta donde se vaya a quedar, por ejemplo en Documentos.
+   No lo abras desde dentro del zip.
+2. Abre "Instalar Cauce.bat".
+   - Si te dice que falta Python y aceptas instalarlo, al terminar vuelve a abrir "Instalar Cauce.bat".
+   - Si Windows avisa que el archivo viene de internet, dale "Más información" y "Ejecutar de todas formas".
+3. Al final quedan accesos directos "Cauce" en el escritorio y en el menú Inicio.
+
+CÓMO SE USA
+- Abre Cauce con el acceso directo y luego "Abrir modelo" (cualquier .inp de EPANET) o "Nuevo" para
+  empezar uno desde cero.
+- La X o el botón Salir preguntan antes si hay cambios sin guardar.
+- El archivo .inp original nunca se sobrescribe: los cambios van a un escenario y se exportan con otro nombre.
+- En el Glosario está explicado cada concepto.
+
+SI ALGO FALLA
+- "Iniciar Cauce.bat" abre Cauce con una ventana negra que muestra el error.
+- Si la ventana de Cauce no abre, Cauce se abre en el navegador Edge; funciona igual.
+
+PARA DESINSTALAR
+- Borra esta carpeta y los dos accesos directos "Cauce".

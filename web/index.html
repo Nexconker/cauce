@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cauce</title>
+<meta name="description" content="Cauce: un EPANET más claro para revisar, correr y comparar modelos de redes de agua en tu propio PC.">
+<link rel="preload" href="fuentes/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fuentes/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="icon" type="image/png" sizes="16x16" href="marca/nex-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="marca/nex-32.png">
+<link rel="icon" type="image/png" sizes="256x256" href="marca/nex-256.png">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<header id="barra">
+  <button class="marca" id="b-inicio" title="Volver al inicio" aria-label="Cauce: volver al inicio"><img class="logo" src="marca/nex.svg" alt=""><b>Cauce</b><span class="de">Nex-Industries</span></button>
+  <div id="pestanas" role="tablist" aria-label="Modelos abiertos"></div>
+  <div class="barra-der">
+    <button id="b-nuevo" class="btn" title="Empezar un modelo desde cero">Nuevo</button>
+    <button id="b-abrir" class="btn">Abrir modelo</button>
+    <label class="motor-sel" title="Versión del motor de EPANET">Motor
+      <select id="motor"><option value="2.2">2.2 · como EPANET de escritorio</option><option value="2.3">2.3 · rápido</option></select>
+    </label>
+    <button id="b-salir" class="btn" title="Cerrar Cauce; si hay cambios sin guardar, pregunta antes">Salir</button>
+  </div>
+</header>
+<div id="cuerpo">
+  <nav id="rail" aria-label="Herramientas">
+    <button data-panel="modelo" class="activo"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z M4 9h16 M9 9v10"/></svg><span>Modelo</span></button>
+    <button data-panel="revision"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z M12 10v4 M12 17v.5"/></svg><span>Revisión</span><i class="punto" id="p-rev"></i></button>
+    <button data-panel="correr"><svg viewBox="0 0 24 24"><path d="M7 4l12 8-12 8z"/></svg><span>Correr</span></button>
+    <button data-panel="escenario"><svg viewBox="0 0 24 24"><path d="M4 7h10 M4 12h16 M4 17h7 M17 4v6 M14 7h6"/></svg><span>Escenario</span><i class="punto" id="p-esc"></i></button>
+    <button data-panel="datos"><svg viewBox="0 0 24 24"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6 M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span>Datos</span></button>
+    <button data-panel="consignas"><svg viewBox="0 0 24 24"><path d="M5 20V10 M12 20V4 M19 20v-7 M3 13h4 M10 8h4 M17 16h4"/></svg><span>Consignas</span></button>
+    <button data-panel="comparar"><svg viewBox="0 0 24 24"><path d="M8 4v16 M16 4v16 M4 8h4 M16 16h4 M4 16h4 M16 8h4"/></svg><span>Comparar</span></button>
+    <button data-panel="informes"><svg viewBox="0 0 24 24"><path d="M4 20V4 M4 20h16 M8 16l4-5 3 3 5-7"/></svg><span>Informes</span></button>
+    <button data-panel="scripts"><svg viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5 M16 7l5 5-5 5 M13.5 4.5l-3 15"/></svg><span>Scripts</span></button>
+    <button data-panel="glosario"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z M5 17a3 3 0 0 1 3-3h11"/></svg><span>Glosario</span></button>
+    <button data-panel="ajustes" class="abajo"><svg viewBox="0 0 24 24"><path d="M4 6h9 M17 6h3 M4 12h3 M11 12h9 M4 18h11 M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Ajustes</span></button>
+  </nav>
+  <aside id="panel" aria-live="polite"></aside>
+  <main id="mapa-caja">
+    <canvas id="mapa" aria-label="Mapa de la red"></canvas>
+    <button id="b-plegar" title="Plegar el panel ( [ )" aria-label="Plegar el panel" aria-expanded="true"><svg viewBox="0 0 12 20"><path d="M8 5l-4 5 4 5"/></svg></button>
+    <div id="buscador"><input id="buscar" placeholder="Buscar nudo, tramo o nombre  ( / )" autocomplete="off" spellcheck="false"><div id="sugerencias" hidden></div></div>
+    <div id="modos" class="flota">
+      <label>Colorear <select id="modo-color">
+        <option value="tipo">Por tipo y diámetro</option>
+        <option value="horizonte">Por horizonte de proyecto</option>
+        <option value="estado">Abierto / cerrado</option>
+        <option value="resultado" disabled>Resultados de la corrida</option>
+        <option value="diferencias" disabled>Diferencias de la comparación</option>
+      </select></label>
+      <label class="chk"><input type="checkbox" id="ver-rotulos" checked> Rótulos</label>
+      <button class="btn chico" id="b-3d" aria-pressed="false" title="Ver la red en 3D, con el agua moviéndose (tecla 3)">3D</button>
+      <button class="btn chico" id="b-encuadrar" title="Ver toda la red">Toda la red</button>
+      <button class="btn chico prim" id="b-editar" title="Agregar, partir, unir, mover o borrar elementos (tecla E)" aria-pressed="false">Editar red</button>
+    </div>
+    <div id="herramientas" class="flota" role="toolbar" aria-label="Herramientas de edición" hidden>
+      <div class="grupo-h" aria-label="Elegir">
+        <button data-h="seleccionar" data-k="S" class="activo" title="Seleccionar y ver la ficha (S)"><svg viewBox="0 0 20 20" class="ic-linea"><path d="M5 3l10 6.2-4.3 1.1L8.4 15z"/></svg><span>Seleccionar</span></button>
+        <button data-h="mover" data-k="M" title="Arrastrar un nudo (M)"><svg viewBox="0 0 20 20" class="ic-linea"><path d="M10 2v16M2 10h16M10 2l-2.5 2.5M10 2l2.5 2.5M10 18l-2.5-2.5M10 18l2.5-2.5M2 10l2.5-2.5M2 10l2.5 2.5M18 10l-2.5-2.5M18 10l-2.5 2.5"/></svg><span>Mover</span></button>
+      </div>
+      <div class="grupo-h" aria-label="Agregar">
+        <button data-h="nudo" data-k="N" title="Nudo nuevo con la cota estimada (N)"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="4.2" class="f-nudo"/></svg><span>Nudo</span></button>
+        <button data-h="tuberia" data-k="T" title="Tubería entre dos nudos (T)"><svg viewBox="0 0 20 20"><path d="M4.5 15.5L15.5 4.5" class="t-tubo"/><circle cx="4.5" cy="15.5" r="2.6" class="f-nudo"/><circle cx="15.5" cy="4.5" r="2.6" class="f-nudo"/></svg><span>Tubería</span></button>
+        <button data-h="tanque" data-k="K" title="Tanque nuevo (K)"><svg viewBox="0 0 20 20"><rect x="4.5" y="4.5" width="11" height="11" rx="1" class="f-tanque"/></svg><span>Tanque</span></button>
+        <button data-h="embalse" data-k="R" title="Embalse o planta nueva (R)"><svg viewBox="0 0 20 20"><path d="M10 3.5l7 12H3z" class="f-embalse"/></svg><span>Embalse</span></button>
+      </div>
+      <div class="grupo-h" aria-label="Meter en una tubería">
+        <button data-h="valvula" data-k="V" title="Meter una válvula en una tubería (V)"><svg viewBox="0 0 20 20"><path d="M1.5 10h3M15.5 10h3" class="t-tubo"/><path d="M4.5 6v8l11-8v8z" class="f-valvula"/></svg><span>Válvula</span></button>
+        <button data-h="bomba" data-k="B" title="Meter una bomba en una tubería (B)"><svg viewBox="0 0 20 20"><path d="M1.5 10h3M15.5 10h3" class="t-tubo"/><circle cx="10" cy="10" r="5.4" class="c-bomba"/><path d="M8.4 7.4L12.6 10 8.4 12.6z" class="f-bomba"/></svg><span>Bomba</span></button>
+      </div>
+      <div class="grupo-h" aria-label="Conectar">
+        <button data-h="partir" data-k="P" title="Partir una tubería con un nudo nuevo (P)"><svg viewBox="0 0 20 20"><path d="M2 14.5L8 9.5M12 7.5L18 2.5" class="t-tubo"/><circle cx="10" cy="8.5" r="2.8" class="f-nuevo"/></svg><span>Partir</span></button>
+        <button data-h="unir" data-k="U" title="Unir un nudo suelto con la red (U)"><svg viewBox="0 0 20 20"><path d="M3 16L9 10.5M17 16l-6-5.5" class="t-tubo"/><path d="M10 3v4.2" class="t-guia"/><circle cx="10" cy="9.5" r="2.6" class="f-nuevo"/></svg><span>Unir</span></button>
+      </div>
+      <div class="grupo-h" aria-label="En grupo y anotaciones">
+        <button data-h="area" data-k="A" title="Encerrar un área para editar todo lo que hay adentro (A)"><svg viewBox="0 0 20 20" class="ic-linea"><path d="M3 3h4M13 3h4v4M17 13v4h-4M7 17H3v-4M3 7V3" /><circle cx="9" cy="10" r="1.6" class="f-nudo"/><path d="M6 13l6-6" class="t-tubo"/></svg><span>Área</span></button>
+        <button data-h="rotulo" data-k="L" title="Escribir un rótulo en el mapa (L)"><svg viewBox="0 0 20 20" class="ic-linea"><path d="M4 5h12M10 5v11M7.5 16h5"/></svg><span>Rótulo</span></button>
+      </div>
+      <div class="grupo-h" aria-label="Quitar">
+        <button data-h="borrar" data-k="D" title="Borrar un nudo o tramo (D)"><svg viewBox="0 0 20 20" class="ic-linea"><path d="M4 6h12M8 6V4h4v2M5.6 6l.8 10h7.2l.8-10M8.5 9v4.5M11.5 9v4.5"/></svg><span>Borrar</span></button>
+      </div>
+      <div class="grupo-h fin">
+        <button id="b-longitud" aria-pressed="false" title="Longitud automática"><svg viewBox="0 0 20 20" class="ic-linea"><path d="M2.5 13.5l11-11 4 4-11 11z M5.5 10.5l1.6 1.6 M8 8l1.6 1.6 M10.5 5.5l1.6 1.6"/></svg><span>Long. auto</span></button>
+        <button id="b-deshacer" title="Deshacer la última edición (Ctrl+Z)"><svg viewBox="0 0 20 20" class="ic-linea"><path d="M7 5L3 9l4 4M3 9h9a5 5 0 0 1 0 10h-2"/></svg><span>Deshacer</span></button>
+        <button id="b-cerrar-edicion" title="Salir de la edición (E)"><svg viewBox="0 0 20 20" class="ic-linea"><path d="M5 5l10 10M15 5L5 15"/></svg><span>Salir</span></button>
+      </div>
+      <div id="pista-herramienta"></div>
+    </div>
+    <div id="leyenda" class="flota"></div>
+    <div id="tip" hidden></div>
+    <div id="estado-mapa"></div>
+    <section id="bienvenida"></section>
+  </main>
+  <aside id="inspector" hidden></aside>
+</div>
+<footer id="tiempo" hidden></footer>
+<div id="presentacion" hidden role="presentation">
+  <div class="pres-marca">
+    <svg class="pres-logo" aria-hidden="true" viewBox="0 0 240 240"><defs><mask id="nx-pres"><rect width="240" height="240" fill="#000"/><polygon points="120.00,27.96 199.71,73.98 199.71,166.02 120.00,212.04 40.29,166.02 40.29,73.98" fill="#fff"/><polygon points="120.00,-36.00 165.03,-10.00 165.03,42.00 120.00,68.00 74.97,42.00 74.97,-10.00" fill="#000"/><polygon points="210.07,16.00 255.10,42.00 255.10,94.00 210.07,120.00 165.03,94.00 165.03,42.00" fill="#000"/><polygon points="210.07,120.00 255.10,146.00 255.10,198.00 210.07,224.00 165.03,198.00 165.03,146.00" fill="#000"/><polygon points="120.00,172.00 165.03,198.00 165.03,250.00 120.00,276.00 74.97,250.00 74.97,198.00" fill="#000"/><polygon points="29.93,120.00 74.97,146.00 74.97,198.00 29.93,224.00 -15.10,198.00 -15.10,146.00" fill="#000"/><polygon points="29.93,16.00 74.97,42.00 74.97,94.00 29.93,120.00 -15.10,94.00 -15.10,42.00" fill="#000"/><line x1="83.97" y1="99.20" x2="64.16" y2="87.76" stroke="#000" stroke-width="11.44" stroke-linecap="round"/><line x1="120.00" y1="78.40" x2="120.00" y2="55.52" stroke="#000" stroke-width="11.44" stroke-linecap="round"/><line x1="156.03" y1="99.20" x2="175.84" y2="87.76" stroke="#000" stroke-width="11.44" stroke-linecap="round"/><line x1="156.03" y1="140.80" x2="175.84" y2="152.24" stroke="#000" stroke-width="11.44" stroke-linecap="round"/><line x1="120.00" y1="161.60" x2="120.00" y2="184.48" stroke="#000" stroke-width="11.44" stroke-linecap="round"/><line x1="83.97" y1="140.80" x2="64.16" y2="152.24" stroke="#000" stroke-width="11.44" stroke-linecap="round"/></mask></defs><polygon class="pres-onda" points="120.00,16.00 210.07,68.00 210.07,172.00 120.00,224.00 29.93,172.00 29.93,68.00" fill="none" stroke="#ffffff" stroke-width="2"/><polygon class="pres-hex" points="120.00,16.00 210.07,68.00 210.07,172.00 120.00,224.00 29.93,172.00 29.93,68.00" fill="#0a0a0a"/><g class="pres-mark"><rect width="240" height="240" fill="#ffffff" mask="url(#nx-pres)"/></g><polygon class="pres-trazo" points="120.00,16.00 210.07,68.00 210.07,172.00 120.00,224.00 29.93,172.00 29.93,68.00" pathLength="1" fill="none" stroke="#ffffff" stroke-width="3" stroke-linejoin="round"/></svg>
+    <div class="pres-empresa"><span>Nex-Industries</span></div>
+    <div class="pres-presenta">presenta</div>
+    <div class="pres-app">Cauce</div>
+  </div>
+</div>
+<div id="capa-modal" hidden></div>
+<div id="toasts" aria-live="assertive"></div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

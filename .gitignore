@@ -1,0 +1,11 @@
+# lo de cada persona: configuración, escenarios, scripts propios, corridas
+/trabajo/
+# paquetes que instala "Instalar Cauce.bat"
+/lib/
+__pycache__/
+*.pyc
+*.nuevo
+# notas internas del desarrollo (traen datos de proyectos)
+/LEEME_PARA_CLAUDE.txt
+*.zip
+.claude/
