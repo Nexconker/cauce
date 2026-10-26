@@ -2,7 +2,7 @@
 // corrida activa. También la edición en grupo (desde una tabla filtrada o desde un área del mapa).
 import { S, bus, get, post, binario, esc, n, h, hora, aviso, fallo, modal, formulario, explorar, conjunto, esqueleto, $, $$, U, nombreCalidad, claseTexto } from './estado.js';
 import { mapa } from './mapa.js';
-import { grafica } from './grafica.js';
+import { grafica, ajustarCanvas } from './grafica.js';
 
 const P = () => document.getElementById('panel');
 let pestana = 'perfil';
@@ -93,8 +93,10 @@ async function tPerfil(c) {
   c.append(cv);
   setTimeout(() => dibujoPerfil(cv, { x: k.distancias, cota: k.cotas, carga, cmin, cmax, pres, ids: k.nudos }), 0);
 }
-function dibujoPerfil(canvas, { x, cota, carga, cmin, cmax, pres, ids }) {
-  const dpr = window.devicePixelRatio || 1, W = canvas.clientWidth || 320, H = canvas.clientHeight || 240;
+function dibujoPerfil(canvas, datos) {
+  const { x, cota, carga, cmin, cmax, pres, ids } = datos;
+  if (!ajustarCanvas(canvas, () => dibujoPerfil(canvas, datos))) return;
+  const dpr = window.devicePixelRatio || 1, W = canvas.clientWidth, H = canvas.clientHeight;
   canvas.width = W * dpr; canvas.height = H * dpr;
   const c = canvas.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
   const izq = 46, der = 8, arr = 10, aba = 22;
@@ -184,7 +186,8 @@ async function tFrecuencia(c) {
   }
 }
 function dibujoFrecuencia(canvas, vals) {
-  const dpr = window.devicePixelRatio || 1, W = canvas.clientWidth || 320, H = canvas.clientHeight || 200;
+  if (!ajustarCanvas(canvas, () => dibujoFrecuencia(canvas, vals))) return;
+  const dpr = window.devicePixelRatio || 1, W = canvas.clientWidth, H = canvas.clientHeight;
   canvas.width = W * dpr; canvas.height = H * dpr;
   const c = canvas.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
   const izq = 40, der = 34, arr = 10, aba = 22, B = 16;

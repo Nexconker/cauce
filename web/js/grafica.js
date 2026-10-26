@@ -1,9 +1,29 @@
 // Gráficas de líneas en canvas: series de 24 h, varias curvas, banda opcional y lectura al pasar el ratón.
 import { n, hora } from './estado.js';
 
-export function grafica(canvas, { series, horas, unidad = '', banda = null, marca = null, decimales = 1 }) {
+// Un canvas guarda los píxeles del tamaño que tenía al dibujarse: si se pinta con el panel plegado (ancho 0) o el
+// panel cambia de ancho después (plegar, Ampliar), el navegador estira esa imagen y las letras salen anchas y
+// borrosas. Cada gráfica se vuelve a pintar cuando su canvas cambia de tamaño y no se pinta mientras no se ve:
+// devuelve false si ahora no hay que pintar (el observador la repinta en cuanto tenga tamaño).
+export function ajustarCanvas(canvas, repintar) {
+  canvas._repintar = repintar;
+  if (!canvas._ro) {
+    canvas._ro = new ResizeObserver(() => {
+      if (!canvas.isConnected) { canvas._ro.disconnect(); return; }
+      if (`${canvas.clientWidth}x${canvas.clientHeight}` !== canvas._tam && canvas.clientWidth >= 40) canvas._repintar();
+    });
+    canvas._ro.observe(canvas);
+  }
+  if (canvas.clientWidth < 40 || canvas.clientHeight < 20) return false;
+  canvas._tam = `${canvas.clientWidth}x${canvas.clientHeight}`;
+  return true;
+}
+
+export function grafica(canvas, opciones) {
+  const { series, horas, unidad = '', banda = null, marca = null, decimales = 1 } = opciones;
+  if (!ajustarCanvas(canvas, () => grafica(canvas, opciones))) return { redibujar() {} };
   const dpr = window.devicePixelRatio || 1;
-  const W = canvas.clientWidth || 300, H = canvas.clientHeight || 140;
+  const W = canvas.clientWidth, H = canvas.clientHeight;
   canvas.width = W * dpr; canvas.height = H * dpr;
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -60,8 +80,9 @@ export function grafica(canvas, { series, horas, unidad = '', banda = null, marc
 
 // barras pequeñas (pasos por hora)
 export function barras(canvas, valores, color = '#b8adad') {
+  if (!ajustarCanvas(canvas, () => barras(canvas, valores, color))) return;
   const dpr = window.devicePixelRatio || 1;
-  const W = canvas.clientWidth || 300, H = canvas.clientHeight || 60;
+  const W = canvas.clientWidth, H = canvas.clientHeight;
   canvas.width = W * dpr; canvas.height = H * dpr;
   const ctx = canvas.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const max = Math.max(1, ...valores), w = W / Math.max(1, valores.length);

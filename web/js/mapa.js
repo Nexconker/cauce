@@ -29,6 +29,12 @@ function claseDe(v, c) { const j = c.cortes.findIndex((x) => v < x); return c.co
 function cortesDiametro() { return S.M?.sistema?.us ? [12, 24, 40] : [300, 600, 1000]; }
 function colorHorizonte(anio) { const j = (S.M?.horizontes || []).indexOf(anio); return j < 0 ? null : COL.h[j % COL.h.length]; }
 const RAMPA = ['#1d3b58', '#21608d', '#2a8fc4', '#4cc2ff', '#9be2ff'];
+// grosor por caudal: con el interruptor «Grosor por caudal» el ancho de cada tramo sale de su caudal a la hora de la
+// barra, en la escala del día (el mayor caudal de cualquier tramo a cualquier hora es el ancho máximo), así que al
+// reproducir se ve la red cargarse y descargarse. Va con la raíz cuadrada para que la distribución no desaparezca
+// junto a las troncales, y en pocos pasos para que el dibujo siga por lotes.
+const GROSOR = { min: 0.5, max: 5, pasos: 12 };
+export const grosorCaudal = () => !!(S.corrida && S.T && S.res.caudal && document.getElementById('ver-grosor')?.checked);
 
 export const mapa = {
   cv: null, ctx: null, W: 0, H: 0, dpr: 1, s: 1, cx: 0, cy: 0, pendiente: false,
@@ -170,6 +176,13 @@ export const mapa = {
     if (S.envolvente && v === 'presion') { let m = Infinity; for (let t = 0; t < S.T; t++) m = Math.min(m, a[t * nN + i]); return m; }
     return this.muestra(a, nN, i);
   },
+  // el mayor caudal de la corrida, en valor absoluto: el ancho máximo del grosor por caudal
+  caudalMaximo() {
+    const Q = S.res.caudal;
+    if (!Q) return 0;
+    if (this.qmax?.Q !== Q) { let m = 0; for (let j = 0; j < Q.length; j++) { const x = Math.abs(Q[j]); if (x > m) m = x; } this.qmax = { Q, m }; }
+    return this.qmax.m;
+  },
   estilar() {
     const M = S.M; if (!M) return;
     const L = M.tramos, nL = L.id.length, N = M.nudos;
@@ -177,6 +190,12 @@ export const mapa = {
     const clave = (c, w, d) => { const kk = `${c}|${w}|${d ? 1 : 0}`; if (!tabla.has(kk)) tabla.set(kk, { c, w, d, ks: [] }); return tabla.get(kk); };
     const [d1, d2, d3] = cortesDiametro();
     const ancho = (k) => { const d = L.diam[k] || 0; return d >= d3 ? 2.6 : d >= d2 ? 1.9 : d >= d1 ? 1.3 : 0.8; };
+    const porCaudal = grosorCaudal(), qmax = porCaudal ? this.caudalMaximo() : 0;
+    const anchoCaudal = (k) => {
+      const q = Math.abs(this.muestra(S.res.caudal, nL, k));
+      const f = qmax > 0 && isFinite(q) ? Math.round(Math.sqrt(Math.min(1, q / qmax)) * GROSOR.pasos) / GROSOR.pasos : 0;
+      return GROSOR.min + (GROSOR.max - GROSOR.min) * f;
+    };
     const CL = clases();
     const cerrado = (k) => L.estado[k] === 'CLOSED';
     const modo = S.modo;
@@ -195,12 +214,13 @@ export const mapa = {
       geo: new Set([...(cmp.tramos_geometria || []).map((x) => x.id), ...(cmp.tramos_consigna || []).map((x) => x.id)]),
     } : null;
     for (let k = 0; k < nL; k++) {
-      const t = L.tipo[k];
-      let c, w = ancho(k), d = false;
+      const t = L.tipo[k], wd = ancho(k);
+      // con el grosor por caudal el ancho es el caudal en todos los modos: los modos solo ponen el color
+      let c, w = porCaudal ? anchoCaudal(k) : wd, d = false;
       if (modo === 'horizonte') {
         const tg = L.tag[k];
         c = colorHorizonte(L.horizonte?.[k]) || (tg && !/^[\d.]+$/.test(tg) ? COL.hotro : COL.tenue);
-        if (c === COL.tenue) w = Math.min(w, 1); else w = Math.max(w, 1.6);
+        if (!porCaudal) w = c === COL.tenue ? Math.min(w, 1) : Math.max(w, 1.6);
         d = cerrado(k);
       } else if (modo === 'estado') {
         c = cerrado(k) ? COL.p[0] : t === 'CV' ? COL.cv : t === 'PUMP' ? COL.bomba : t !== 'PIPE' ? COL.valvula : COL.tubo[1];
@@ -211,19 +231,20 @@ export const mapa = {
           c = !isFinite(v) ? COL.nan : claseDe(v, CL.velocidad);
         } else if (S.variable === 'caudal') {
           const v = Math.abs(this.valorTramo(k));
-          if (!isFinite(v)) c = COL.nan; else { const f = rango && rango[1] > rango[0] ? Math.sqrt((v - rango[0]) / (rango[1] - rango[0])) : 0; c = RAMPA[Math.min(4, Math.floor(f * 5))]; w = 0.7 + f * 3.2; }
+          if (!isFinite(v)) c = COL.nan; else { const f = rango && rango[1] > rango[0] ? Math.sqrt((v - rango[0]) / (rango[1] - rango[0])) : 0; c = RAMPA[Math.min(4, Math.floor(f * 5))]; if (!porCaudal) w = 0.7 + f * 3.2; }
         } else if (S.variable === 'estado') {
           const v = this.valorTramo(k); c = !isFinite(v) ? COL.nan : v > 0 ? COL.tubo[1] : COL.p[0]; d = v <= 0;
         } else if (S.variable === 'calidad') {
           const v = this.valorCalidadTramo(k);
-          if (!isFinite(v)) c = COL.nan; else { const f = rango && rango[1] > rango[0] ? (v - rango[0]) / (rango[1] - rango[0]) : 0; c = RAMPA[Math.max(0, Math.min(4, Math.floor(f * 5)))]; w = Math.max(w, 1.4); }
-        } else { c = '#3a3434'; w = Math.min(w, 1.2); }
+          if (!isFinite(v)) c = COL.nan; else { const f = rango && rango[1] > rango[0] ? (v - rango[0]) / (rango[1] - rango[0]) : 0; c = RAMPA[Math.max(0, Math.min(4, Math.floor(f * 5)))]; if (!porCaudal) w = Math.max(w, 1.4); }
+        } else if (porCaudal) c = '#5a5151';
+        else { c = '#3a3434'; w = Math.min(w, 1.2); }
       } else if (modo === 'diferencias' && setCmp) {
         const id = L.id[k];
         c = setCmp.nuevo.has(id) ? COL.nuevo : setCmp.estado.has(id) ? COL.cambio : setCmp.geo.has(id) ? COL.geo : COL.tenue;
-        if (c !== COL.tenue) w = Math.max(w, 2.2);
+        if (c !== COL.tenue && !porCaudal) w = Math.max(w, 2.2);
       } else {
-        c = t === 'PUMP' ? COL.bomba : t !== 'PIPE' && t !== 'CV' ? COL.valvula : COL.tubo[w >= 2.6 ? 3 : w >= 1.9 ? 2 : w >= 1.3 ? 1 : 0];
+        c = t === 'PUMP' ? COL.bomba : t !== 'PIPE' && t !== 'CV' ? COL.valvula : COL.tubo[wd >= 2.6 ? 3 : wd >= 1.9 ? 2 : wd >= 1.3 ? 1 : 0];
         if (cerrado(k)) { c = COL.cerrado; d = true; }
       }
       est[k] = clave(c, w, d);
@@ -537,5 +558,13 @@ export function leyenda() {
     h = `<div class="t">Diferencias</div>${it(COL.nuevo, 'Solo en el modelo abierto')}${it(COL.quitado, 'Solo en el otro (fantasma)', 'd')}${it(COL.cambio, 'Cambia el estado inicial')}${it(COL.geo, 'Cambia geometría o consigna')}`;
   }
   if (h && S.corrida && S.T && document.getElementById('ver-flechas')?.checked) h += '<div class="it"><span class="sw flecha">➤</span>Sentido del agua a esta hora</div>';
+  // escala del grosor: el ancho crece con la raíz del caudal, así que a la mitad del ancho le toca un cuarto del caudal
+  if (h && grosorCaudal()) {
+    const qm = mapa.caudalMaximo(), u = U('caudal');
+    h += '<div class="t sep">Grosor: caudal a esta hora</div>' + [1, 0.5, 0.25].map((f) => {
+      const q = qm * f * f, w = GROSOR.min + (GROSOR.max - GROSOR.min) * f;
+      return `<div class="it"><span class="sw grosor" style="height:${w}px"></span>${esc(`${n(q, q < 10 ? 1 : 0)} ${u}${f === 1 ? ' · el mayor del día' : ''}`)}</div>`;
+    }).join('');
+  }
   el.innerHTML = h;
 }

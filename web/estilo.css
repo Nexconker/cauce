@@ -273,8 +273,10 @@ body.panel-amplio #mapa-caja { visibility: hidden; }
 #sugerencias button { display: flex; width: 100%; gap: 8px; padding: 6px 8px; border: 0; background: none; cursor: pointer; text-align: left; border-radius: var(--r-1); }
 #sugerencias button:hover, #sugerencias button.on { background: var(--panel-3); }
 #sugerencias .t { color: var(--apagado); font-size: 11px; margin-left: auto; white-space: nowrap; }
-#modos { position: absolute; top: 12px; right: 12px; display: flex; gap: 10px; align-items: center; padding: 5px 6px 5px 12px; z-index: var(--z-control); font-size: 12px; color: var(--tinta-2); }
-#modos label { display: flex; align-items: center; gap: 6px; }
+/* la barra de modos no pasa por debajo del buscador: si no cabe a su derecha, se parte en dos líneas */
+#modos { position: absolute; top: 12px; right: 12px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 10px; align-items: center; max-width: calc(100% - 336px);
+  padding: 5px 6px 5px 12px; z-index: var(--z-control); font-size: 12px; color: var(--tinta-2); }
+#modos label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 #modos select { padding: 3px 6px; }
 .chk { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--tinta-2); }
 /* barra de edición: cada herramienta con el mismo símbolo que tiene en el mapa, agrupadas por lo que hacen */
@@ -313,6 +315,8 @@ body.panel-amplio #mapa-caja { visibility: hidden; }
 #leyenda .sw.p { width: 9px; height: 9px; border-radius: 50%; }
 #leyenda .sw.d { background: repeating-linear-gradient(90deg, var(--apagado) 0 4px, transparent 4px 7px) !important; }
 #leyenda .sw.flecha { height: auto; background: none; color: var(--tinta); font-size: 10px; line-height: 1; text-align: center; }
+#leyenda .t.sep { margin-top: 8px; }
+#leyenda .sw.grosor { background: var(--tinta-2); border-radius: 3px; }
 #tip { position: absolute; pointer-events: none; background: rgba(12, 10, 10, .96); border: 1px solid var(--linea-2); border-radius: var(--r-2); padding: 7px 10px;
   font-size: 12px; box-shadow: var(--sombra); z-index: var(--z-ayuda); max-width: 300px; line-height: 1.45; }
 #tip b { font-weight: 600; font-family: var(--mono); font-size: 12px; }
@@ -582,7 +586,7 @@ kbd { font-family: var(--mono); font-size: 11px; color: var(--tinta-2); backgrou
 
 @container (max-width: 860px) {
   #buscador { width: calc(100% - 24px); }
-  #modos { top: 56px; left: 12px; right: auto; flex-wrap: wrap; }
+  #modos { top: 56px; left: 12px; right: auto; max-width: calc(100% - 24px); justify-content: flex-start; }
   #herramientas { top: 104px; }
 }
 

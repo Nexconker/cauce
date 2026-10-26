@@ -1,6 +1,7 @@
 // Panel Datos: patrones, curvas, controles, reglas y opciones de cálculo. Cada cambio es una edición del escenario
 // (se deshace con Ctrl+Z) y el servidor la prueba con EPANET 2.2 antes de aceptarla.
 import { S, bus, get, post, esc, n, h, aviso, fallo, modal, formulario, esqueleto, $, $$, U } from './estado.js';
+import { ajustarCanvas } from './grafica.js';
 
 const P = () => document.getElementById('panel');
 let pestana = 'patrones';
@@ -76,9 +77,11 @@ function desplegable(clave, titulo, filas, alElegir) {
 function aLaVista(caja) { requestAnimationFrame(() => caja.scrollIntoView({ block: 'nearest' })); }
 
 // gráfica pequeña: barras (patrón) o línea con puntos (curva)
-function dibujo(canvas, { tipo, valores = [], puntos = [], extra = [], ex = '', ey = '' }) {
+function dibujo(canvas, opciones) {
+  const { tipo, valores = [], puntos = [], extra = [], ex = '', ey = '' } = opciones;
+  if (!ajustarCanvas(canvas, () => dibujo(canvas, opciones))) return;
   const dpr = window.devicePixelRatio || 1;
-  const W = canvas.clientWidth || 300, H = canvas.clientHeight || 150;
+  const W = canvas.clientWidth, H = canvas.clientHeight;
   canvas.width = W * dpr; canvas.height = H * dpr;
   const c = canvas.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
   const izq = 40, der = 8, arr = 10, aba = 22;

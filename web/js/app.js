@@ -296,10 +296,12 @@ function actualizarModos() {
 }
 bus.on('corrida', async () => {
   if (S.T) S.modo = 'resultado'; actualizarModos(); mapa.estilar(); leyenda(); if (S.sel) mostrarInspector();
-  if (verFlechas()) { await cargarVariable('caudal').catch(() => {}); mapa.pedir(); }
+  if (verFlechas() || verGrosor()) { await cargarVariable('caudal').catch(() => {}); mapa.estilar(); leyenda(); }
 });
-// flechas con el sentido del agua: necesitan el caudal de la corrida aunque el mapa esté coloreado por otra variable
+// flechas con el sentido del agua y grosor por caudal: necesitan el caudal de la corrida aunque el mapa esté
+// coloreado por otra variable
 const verFlechas = () => !!document.getElementById('ver-flechas')?.checked;
+const verGrosor = () => !!document.getElementById('ver-grosor')?.checked;
 bus.on('comparacion', () => { S.modo = 'diferencias'; actualizarModos(); mapa.estilar(); leyenda(); });
 
 // La barra de tiempo avanza continua, como la del visor web: S.t es la hora como posición fraccionaria entre los
@@ -666,6 +668,12 @@ async function iniciar() {
     try { localStorage.setItem('cauce-flechas', verFlechas() ? '1' : '0'); } catch (e) { /* sin almacenamiento */ }
     if (verFlechas() && S.corrida) await cargarVariable('caudal').catch(fallo);
     mapa.pedir(); leyenda();
+  };
+  try { $('#ver-grosor').checked = localStorage.getItem('cauce-grosor') === '1'; } catch (e) { /* sin almacenamiento */ }
+  $('#ver-grosor').onchange = async () => {
+    try { localStorage.setItem('cauce-grosor', verGrosor() ? '1' : '0'); } catch (e) { /* sin almacenamiento */ }
+    if (verGrosor() && S.corrida) await cargarVariable('caudal').catch(fallo);
+    mapa.estilar(); leyenda();
   };
   $('#b-encuadrar').onclick = () => mapa.encuadrar();
   const vista3d = async () => { await alternar3d(); if (!estaAbierta()) leyenda(); };       // la edición sigue abierta en 3D
