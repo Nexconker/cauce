@@ -270,37 +270,52 @@ async function aplicarArreglo(z) {
 }
 
 // ====================================================================== Correr
-let sondeo = null;
+// Cada modelo abierto (cada pestaña) lleva su propia corrida en curso: el avance, el botón y los resultados no se
+// cruzan entre pestañas, y dos modelos pueden correr a la vez (el servidor ya corre cada uno en su proyecto de
+// EPANET). Si la corrida termina con otra pestaña delante, queda como la última de su modelo y se carga al volver.
+const sondeos = {};
+const nombreDoc = (doc) => S.docs.find((d) => d.id === doc)?.nombre || 'Otro modelo';
 export async function correr() {
+  const doc = S.doc;
   try {
-    const r = await post(`/api/doc/${S.doc}/correr`, { motor: S.motor, estados: $('#c-estados')?.checked ?? true, calidad: $('#c-calidad')?.checked ?? true });
-    S.trabajo = r.trabajo;
+    const r = await post(`/api/doc/${doc}/correr`, { motor: S.motor, estados: $('#c-estados')?.checked ?? true, calidad: $('#c-calidad')?.checked ?? true });
+    S.trabajos[doc] = r.trabajo;
     const b = $('#c-correr'); if (b) b.disabled = true;
-    seguir();
+    seguir(doc);
   } catch (e) { fallo(e); }
 }
-function seguir() {
-  clearTimeout(sondeo);
+function seguir(doc) {
+  clearTimeout(sondeos[doc]);
   const paso = async () => {
+    const tid = S.trabajos[doc];
+    if (!tid) return;
     let t;
-    try { t = await get(`/api/trabajo/${S.trabajo}`); } catch (e) { fallo(e); S.trabajo = null; mostrarPanel(); return; }
-    S.progreso = t;
-    if (panelActual === 'correr') pintarProgreso();
-    if (t.fase === 'en curso') { sondeo = setTimeout(paso, 400); return; }
-    S.trabajo = null;
-    if (t.fase === 'error') { fallo(new Error(t.error)); mostrarPanel(); return; }
+    try { t = await get(`/api/trabajo/${tid}`); } catch (e) { fallo(e); delete S.trabajos[doc]; if (S.doc === doc) mostrarPanel(); return; }
+    S.progresos[doc] = t;
+    if (panelActual === 'correr' && S.doc === doc) pintarProgreso();
+    if (t.fase === 'en curso') { sondeos[doc] = setTimeout(paso, 400); return; }
+    delete S.trabajos[doc]; delete S.progresos[doc];
+    const delante = S.doc === doc, de = delante ? '' : `${nombreDoc(doc)}: `;
+    if (t.fase === 'error') { fallo(new Error(de + t.error)); if (delante) mostrarPanel(); return; }
     const res = t.resultado;
-    if (res.error) { S.resumen = null; aviso(res.error.mensaje, 'error'); S.errorLectura = res.error; mostrarPanel(); return; }
-    S.errorLectura = null;
-    await usarCorrida(res.corrida);
+    if (res.error) {
+      aviso(de + res.error.mensaje, 'error');
+      if (delante) { S.resumen = null; S.errorLectura = res.error; mostrarPanel(); }
+      return;
+    }
+    S.ultima[doc] = res.corrida;
+    if (delante) { S.errorLectura = null; await usarCorrida(res.corrida); }
     const r = res.resumen;
-    aviso(r.fallo ? `La corrida falló a las ${hora(r.fallo.hora)}: ${r.fallo.mensaje}` : `Corrida lista en ${n(r.segundos, 1)} s (motor ${r.version}).`, r.fallo ? 'error' : 'ok');
+    const txt = r.fallo ? `La corrida falló a las ${hora(r.fallo.hora)}: ${r.fallo.mensaje}` : `Corrida lista en ${n(r.segundos, 1)} s (motor ${r.version}).`;
+    aviso(delante ? txt : `${de}${txt} Los resultados están en su pestaña.`, r.fallo ? 'error' : 'ok');
   };
   paso();
 }
 export async function usarCorrida(id) {
+  const doc = S.doc;
   const r = await get(`/api/corrida/${id}`);
-  S.corrida = id; S.resumen = r.resumen; S.res = {};
+  if (S.doc !== doc) return;           // se cambió de pestaña mientras llegaba la respuesta
+  S.corrida = id; S.ultima[doc] = id; S.resumen = r.resumen; S.res = {};
   S.horas = r.resumen.horas || []; S.T = S.horas.length; S.hora = Math.min(S.hora, Math.max(0, S.T - 1)); S.t = Math.min(S.t ?? S.hora, Math.max(0, S.T - 1));
   await cargarVariable(S.variable);
   bus.emit('corrida');
@@ -313,13 +328,13 @@ export async function cargarVariable(v) {
 }
 
 function pintarProgreso() {
-  const t = S.progreso, caja = $('#c-prog');
+  const t = S.progresos[S.doc], caja = $('#c-prog');
   if (!caja || !t) return;
   const p = t.progreso || { pct: 0, hora: 0, duracion: 24 };
   caja.innerHTML = t.fase === 'en curso'
     ? `<div class="fila"><span class="cargando"></span> <b>Calculando</b> · hora ${n(p.hora, 1)} de ${n(p.duracion, 0)} · ${n(t.segundos, 0)} s</div><div class="barra-prog"><i style="transform:scaleX(${(p.pct / 100).toFixed(3)})"></i></div><button class="btn chico" id="c-cancelar">Cancelar</button>`
     : '';
-  const b = $('#c-cancelar'); if (b) b.onclick = () => post(`/api/trabajo/${S.trabajo}/cancelar`);
+  const b = $('#c-cancelar'); if (b) b.onclick = () => post(`/api/trabajo/${S.trabajos[S.doc]}/cancelar`);
 }
 
 async function pCorrer() {
@@ -332,8 +347,8 @@ async function pCorrer() {
       <div id="c-prog" style="margin-top:10px"></div></div>`;
   $$('#c-motor button').forEach((b) => { b.classList.toggle('on', b.dataset.v === S.motor); b.onclick = () => { bus.emit('motor', b.dataset.v); pCorrer(); }; });
   $('#c-correr').onclick = correr;
-  $('#c-correr').disabled = !!S.trabajo;
-  if (S.trabajo) pintarProgreso();
+  $('#c-correr').disabled = !!S.trabajos[S.doc];
+  if (S.trabajos[S.doc]) pintarProgreso();
   if (S.errorLectura) P().append(h(`<div class="tarjeta error"><h3>${esc(S.errorLectura.mensaje)}</h3><div class="texto-inp">${esc((S.errorLectura.reporte || []).join('\n'))}</div></div>`));
   // corridas guardadas en memoria
   try {

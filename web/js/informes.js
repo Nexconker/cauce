@@ -49,7 +49,16 @@ async function pintar() {
 bus.on('hora', () => { if (document.getElementById('i-cont') && ['perfil', 'frecuencia', 'tablas'].includes(pestana)) pintar(); });
 
 // ====================================================================== perfil
+// El perfil piezométrico también se pide desde la ficha de un nudo («Perfil desde aquí» / «hasta aquí»): abre
+// Informes › Perfil con los dos nudos puestos y lo traza.
+export function abrirPerfil(desde, hasta) {
+  Object.assign(perfil, { desde, hasta, camino: null, auto: true, doc: S.doc });
+  pestana = 'perfil';
+  bus.emit('panel', 'informes');
+}
 async function tPerfil(c) {
+  // el perfil es de un modelo: en otra pestaña los mismos ID son otros nudos
+  if (perfil.doc !== S.doc) Object.assign(perfil, { desde: '', hasta: '', camino: null, auto: false, doc: S.doc });
   await asegurar('carga'); await asegurar('presion');
   c.innerHTML = '';
   c.append(h('<p class="sub" style="margin:0 0 10px">El terreno y la línea de carga a lo largo del camino más corto entre dos nudos. La banda punteada es la carga mínima y máxima del día.</p>'));
@@ -61,7 +70,7 @@ async function tPerfil(c) {
     const id = S.M.nudos.id[S.sel.i];
     if (!$('#pf-d', f).value) $('#pf-d', f).value = id; else $('#pf-h', f).value = id;
   };
-  $('#pf-ir', f).onclick = async () => {
+  const trazar = async () => {
     perfil.desde = $('#pf-d', f).value.trim(); perfil.hasta = $('#pf-h', f).value.trim();
     if (!perfil.desde || !perfil.hasta) { aviso('Faltan los dos nudos.', 'error'); return; }
     try { perfil.camino = await get(`/api/doc/${S.doc}/camino`, { desde: perfil.desde, hasta: perfil.hasta }); } catch (e) { fallo(e); return; }
@@ -69,6 +78,8 @@ async function tPerfil(c) {
     mapa.ajustarA(S.resaltar); mapa.pedir();
     pintar();
   };
+  $('#pf-ir', f).onclick = trazar;
+  if (perfil.auto) { perfil.auto = false; await trazar(); return; }        // pedido desde la ficha de un nudo
   const k = perfil.camino;
   if (!k) return;
   const nN = S.M.nudos.id.length;

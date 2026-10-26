@@ -37,6 +37,7 @@ async function cerrarDoc(id) {
   const d = S.docs.find((x) => x.id === id);
   if (d?.sin_guardar && !(await confirmarCambios([d], 'cerrar'))) return;
   await post('/api/cerrar', { id });
+  delete S.ultima[id]; delete S.trabajos[id]; delete S.progresos[id];
   if (S.doc === id) { S.doc = null; S.M = null; S.corrida = null; S.resumen = null; S.res = {}; S.comparacion = null; }
   await refrescarDocs();
   if (!S.doc && S.docs.length) await activar(S.docs[S.docs.length - 1].id);
@@ -48,6 +49,15 @@ async function activar(id) {
   if (cambia) { S.corrida = null; S.resumen = null; S.res = {}; S.T = 0; S.comparacion = null; S.hallazgos = null; S.consignas = null; S.sel = null; S.resaltar = null; S.corridaComp = null; S.errorLectura = null; }
   document.body.classList.remove('sin-modelo');
   await cargarModelo(!cambia);
+  // al volver a una pestaña se recupera la última corrida que se vio (o que terminó) en ese modelo; después de
+  // recargar la página, la más reciente que el servidor tenga en memoria
+  if (cambia) {
+    let cid = S.ultima[id];
+    if (!cid) {
+      try { const cs = (await get('/api/corridas')).corridas.filter((c) => c.doc === id && c.fase !== 'fallo'); cid = cs.length ? cs[cs.length - 1].id : null; } catch (e) { /* sin lista */ }
+    }
+    if (cid && S.doc === id) await usarCorrida(cid).catch(() => { delete S.ultima[id]; });
+  }
   pintarPestanas();
   $('#bienvenida').hidden = true;
   pintarLongitud();
@@ -72,7 +82,7 @@ bus.on('recargar', async (o) => { try { await cargarModelo(o?.mantener ?? true);
 bus.on('info', (info) => { S.info = info; refrescarDocs(); });
 bus.on('abrir', abrir);
 bus.on('cerrar-doc', cerrarDoc);
-bus.on('panel', (p) => mostrarPanel(p));
+bus.on('panel', (p) => { if (plegado()) plegar(false); mostrarPanel(p); });
 bus.on('motor', (v) => { S.motor = v; localStorage.setItem('cauce-motor', v); $('#motor').value = v; });
 
 // ====================================================================== cambios sin guardar y salida
@@ -284,7 +294,12 @@ function actualizarModos() {
   leyenda();
   pintarTiempo();
 }
-bus.on('corrida', () => { if (S.T) S.modo = 'resultado'; actualizarModos(); mapa.estilar(); leyenda(); if (S.sel) mostrarInspector(); });
+bus.on('corrida', async () => {
+  if (S.T) S.modo = 'resultado'; actualizarModos(); mapa.estilar(); leyenda(); if (S.sel) mostrarInspector();
+  if (verFlechas()) { await cargarVariable('caudal').catch(() => {}); mapa.pedir(); }
+});
+// flechas con el sentido del agua: necesitan el caudal de la corrida aunque el mapa esté coloreado por otra variable
+const verFlechas = () => !!document.getElementById('ver-flechas')?.checked;
 bus.on('comparacion', () => { S.modo = 'diferencias'; actualizarModos(); mapa.estilar(); leyenda(); });
 
 // La barra de tiempo avanza continua, como la del visor web: S.t es la hora como posición fraccionaria entre los
@@ -646,6 +661,12 @@ async function iniciar() {
   if (guardado === '1') plegar(true);
   $('#modo-color').onchange = async (e) => { S.modo = e.target.value; if (S.modo === 'resultado') await cargarVariable(S.variable).catch(fallo); mapa.estilar(); leyenda(); };
   $('#ver-rotulos').onchange = () => mapa.pedir();
+  try { $('#ver-flechas').checked = localStorage.getItem('cauce-flechas') !== '0'; } catch (e) { /* sin almacenamiento */ }
+  $('#ver-flechas').onchange = async () => {
+    try { localStorage.setItem('cauce-flechas', verFlechas() ? '1' : '0'); } catch (e) { /* sin almacenamiento */ }
+    if (verFlechas() && S.corrida) await cargarVariable('caudal').catch(fallo);
+    mapa.pedir(); leyenda();
+  };
   $('#b-encuadrar').onclick = () => mapa.encuadrar();
   const vista3d = async () => { await alternar3d(); if (!estaAbierta()) leyenda(); };       // la edición sigue abierta en 3D
   $('#b-3d').onclick = vista3d;

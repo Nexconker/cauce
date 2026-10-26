@@ -2,6 +2,7 @@
 // la línea del .inp y la gráfica de 24 h (con la corrida de comparación si hay una).
 import { S, bus, get, post, esc, n, h, fallo, aviso, esqueleto, $, claseTexto, u, U, nombreCalidad, CAMPO_TEXTO } from './estado.js';
 import { grafica } from './grafica.js';
+import { abrirPerfil } from './informes.js';
 
 const el = () => document.getElementById('inspector');
 let token = 0;
@@ -78,6 +79,7 @@ export async function mostrarInspector() {
   // resultados
   if (S.corrida) caja.append(await bloqueResultados(e, clase, i, mio));
   if (mio !== token) return;
+  if (clase === 'nudo') caja.append(bloquePerfil(e.id));
 
   // conexiones
   const con = h('<div class="sec"><div class="eti">Conexiones</div><ul class="lista"></ul></div>');
@@ -154,6 +156,21 @@ async function editarOp(op, mensaje) {
     aviso(mensaje, 'ok');
     bus.emit('recargar', { mantener: true });
   } catch (ex) { fallo(ex); mostrarInspector(); }
+}
+
+// perfil piezométrico entre dos nudos: se marca el inicio en la ficha de uno y se pide en la del otro (del mismo modelo)
+let inicio = { doc: null, id: null };
+function bloquePerfil(id) {
+  const inicioPerfil = inicio.doc === S.doc ? inicio.id : null;
+  const sec = h(`<div class="sec"><div class="eti">Perfil piezométrico</div>
+    <p class="sub" style="font-size:12px;margin:4px 0 6px">Terreno y línea de carga por el camino más corto entre dos nudos${inicioPerfil && inicioPerfil !== id ? `, desde ${esc(inicioPerfil)}` : ''}.</p>
+    <div class="fila"><button class="btn chico" data-a="desde">Desde aquí</button><button class="btn chico${inicioPerfil && inicioPerfil !== id ? ' prim' : ''}" data-a="hasta">Hasta aquí</button></div></div>`);
+  sec.querySelector('[data-a=desde]').onclick = () => { inicio = { doc: S.doc, id }; aviso(`Perfil desde ${id}: selecciona el otro nudo y pulsa «Hasta aquí».`); mostrarInspector(); };
+  sec.querySelector('[data-a=hasta]').onclick = () => {
+    if (!inicioPerfil || inicioPerfil === id) { aviso('Primero pulsa «Desde aquí» en el nudo donde empieza el perfil.', 'error'); return; }
+    abrirPerfil(inicioPerfil, id);
+  };
+  return sec;
 }
 
 function itemIr(clase, id, t, d) {

@@ -11,6 +11,7 @@ export const S = {
   corrida: null,         // id de la corrida que se está viendo
   resumen: null,
   corridaComp: null,     // otra corrida para comparar en las gráficas
+  trabajos: {}, progresos: {}, ultima: {},     // por modelo (pestaña): corrida en curso, su avance y la última corrida vista
   res: {},               // variable -> Float32Array (T × N) en el orden del modelo
   T: 0, horas: [], hora: 0, t: 0, variable: 'presion', envolvente: false,     // t: la hora de la barra, fraccionaria
   modo: 'tipo',

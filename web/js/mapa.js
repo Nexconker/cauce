@@ -288,8 +288,9 @@ export const mapa = {
     const R = S.resaltar;
     if (R && R.tramos.size) { ctx.strokeStyle = COL.resalte; ctx.lineWidth = 4 * zf; ctx.globalAlpha = 0.85; ctx.beginPath(); R.tramos.forEach((k) => trazar(k)); ctx.stroke(); ctx.globalAlpha = 1; }
     if (S.sel && S.sel.clase === 'tramo') { ctx.strokeStyle = COL.sel; ctx.lineWidth = 5 * zf; ctx.beginPath(); trazar(S.sel.i); ctx.stroke(); }
-    // símbolos de bombas y válvulas
     const L = M.tramos, N = M.nudos;
+    if (S.corrida && S.T && S.res.caudal && document.getElementById('ver-flechas')?.checked) this.flechas(L, visible, zf);
+    // símbolos de bombas y válvulas
     if (s > 0.02) {
       for (let k = 0; k < L.id.length; k++) {
         const t = L.tipo[k];
@@ -370,6 +371,43 @@ export const mapa = {
       const [x, y] = this.raton; ctx.fillStyle = COL.sel; ctx.beginPath(); ctx.arc(x, y, 6, 0, 7); ctx.fill();
     }
     document.getElementById('estado-mapa').textContent = `escala 1:${n((M.sistema?.a_metros || 1) / (this.s * 0.00026), 0)}`;
+  },
+
+  // sentido del agua a la hora de la barra: una flecha en la mitad de cada tubería que en pantalla mide lo bastante
+  // para que no se amontonen. El caudal positivo va del nudo inicial al final, que es el orden en que se dibuja el
+  // tramo. Bombas y válvulas no llevan flecha: en su mitad está su símbolo.
+  flechas(L, visible, zf) {
+    const ctx = this.ctx, P = this.P, po = this.po, Q = S.res.caudal, nL = L.id.length;
+    const tam = 4 * zf, ancho = 0.72, minimo = 36;
+    const pts = [];
+    ctx.beginPath();
+    for (let k = 0; k < nL; k++) {
+      if ((L.tipo[k] !== 'PIPE' && L.tipo[k] !== 'CV') || !visible(k)) continue;
+      const a = po[k], b = po[k + 1];
+      if (b - a < 2) continue;
+      const q = this.muestra(Q, nL, k);
+      if (!isFinite(q) || Math.abs(q) < 0.01) continue;
+      pts.length = 0;
+      let largo = 0;
+      for (let j = a; j < b; j++) {
+        const [x, y] = this.pant(P[2 * j], P[2 * j + 1]);
+        if (pts.length) largo += Math.hypot(x - pts[pts.length - 2], y - pts[pts.length - 1]);
+        pts.push(x, y);
+      }
+      if (largo < minimo) continue;
+      let resto = largo / 2, j = 0, d = 0;
+      for (; j < pts.length - 2; j += 2) { d = Math.hypot(pts[j + 2] - pts[j], pts[j + 3] - pts[j + 1]); if (resto <= d) break; resto -= d; }
+      if (!d) continue;
+      const ux = (pts[j + 2] - pts[j]) / d * Math.sign(q), uy = (pts[j + 3] - pts[j + 1]) / d * Math.sign(q);
+      const mx = pts[j] + (pts[j + 2] - pts[j]) * resto / d, my = pts[j + 1] + (pts[j + 3] - pts[j + 1]) * resto / d;
+      ctx.moveTo(mx + ux * tam, my + uy * tam);
+      ctx.lineTo(mx - ux * tam - uy * tam * ancho, my - uy * tam + ux * tam * ancho);
+      ctx.lineTo(mx - ux * tam * 0.45, my - uy * tam * 0.45);
+      ctx.lineTo(mx - ux * tam + uy * tam * ancho, my - uy * tam - ux * tam * ancho);
+      ctx.closePath();
+    }
+    ctx.lineWidth = 2.2; ctx.strokeStyle = 'rgba(12,10,10,.9)'; ctx.stroke();
+    ctx.fillStyle = 'rgba(243,238,238,.92)'; ctx.fill();
   },
 
   // ------------------------------------------------------------ elegir elementos
@@ -498,5 +536,6 @@ export function leyenda() {
   } else if (S.modo === 'diferencias') {
     h = `<div class="t">Diferencias</div>${it(COL.nuevo, 'Solo en el modelo abierto')}${it(COL.quitado, 'Solo en el otro (fantasma)', 'd')}${it(COL.cambio, 'Cambia el estado inicial')}${it(COL.geo, 'Cambia geometría o consigna')}`;
   }
+  if (h && S.corrida && S.T && document.getElementById('ver-flechas')?.checked) h += '<div class="it"><span class="sw flecha">➤</span>Sentido del agua a esta hora</div>';
   el.innerHTML = h;
 }
