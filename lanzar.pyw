@@ -40,6 +40,27 @@ def pythonw():
     return w if os.path.exists(w) else sys.executable
 
 
+def pedir(ruta, cuerpo=None, timeout=2.0):
+    datos = None if cuerpo is None else json.dumps(cuerpo).encode('utf-8')
+    req = urllib.request.Request(URL + ruta, data=datos, headers={'Content-Type': 'application/json'} if datos is not None else {})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read())
+
+
+def apagar_servidor():
+    """Pide al servidor que se apague (si no tiene corridas en curso) y espera a que suelte el puerto."""
+    try:
+        if not pedir('api/apagar', {}).get('ok'):
+            return False
+    except (OSError, ValueError):
+        return False
+    for _ in range(40):
+        if not responde():
+            return True
+        time.sleep(0.25)
+    return False
+
+
 def responde():
     try:
         with urllib.request.urlopen(URL + 'api/estado', timeout=1.5) as r:
@@ -76,6 +97,8 @@ def ventana_propia(ventana, depurar=False):
 
         def cerrar(self):
             estado['salir'] = True
+            for v in secundarias:          # los lectores de reportes se cierran con Cauce
+                threading.Thread(target=v.destroy, daemon=True).start()
             threading.Thread(target=w.destroy, daemon=True).start()
 
         def ventana(self, ruta, titulo='Cauce'):
@@ -83,6 +106,8 @@ def ventana_propia(ventana, depurar=False):
             v = webview.create_window(str(titulo)[:120] or 'Cauce', URL + str(ruta).lstrip('/'), js_api=api, width=1320, height=880,
                                       min_size=(860, 560), background_color='#0f0b0b', text_select=True)
             v.events.shown += al_mostrar
+            v.events.closed += lambda: secundarias.remove(v) if v in secundarias else None
+            secundarias.append(v)
             return True
 
         def al_frente(self):
@@ -95,6 +120,7 @@ def ventana_propia(ventana, depurar=False):
                 pass
             return True
 
+    secundarias = []
     api = Api()
     w = webview.create_window(ventana.TITULO, URL, js_api=api, width=1440, height=900, min_size=(1000, 640),
                               background_color='#0f0b0b', text_select=True)
@@ -170,11 +196,25 @@ def afinar_navegador(ventana, segundos=15):
 
 
 def main():
-    from nucleo import ventana
+    from nucleo import ventana, actualizar
     abiertas = ventana.ventanas()
     if abiertas and responde():
         ventana.al_frente(abiertas[0])
         return
+    if responde():
+        # quedó vivo el servidor de una sesión anterior: si es más viejo que lo instalado o que lo publicado, se apaga ya
+        # para que esta apertura se actualice (antes de la 1.3.1 se apagaba solo al minuto y medio sin ventana)
+        try:
+            v = pedir('api/estado').get('version') or '0'
+            hay = actualizar.tupla(actualizar.version_local(RAIZ))
+            try:
+                hay = max(hay, actualizar.tupla(actualizar.version_remota(3)))
+            except Exception:
+                pass
+            if actualizar.tupla(v) < hay:
+                apagar_servidor()
+        except (OSError, ValueError):
+            pass
     if not responde():
         # sin un Cauce abierto: primero se busca una versión nueva (GitHub); si la hay, se abre el lanzador nuevo
         from nucleo import actualizar
@@ -186,6 +226,7 @@ def main():
                                          'Cauce', 0x10)
         return
     if ventana_propia(ventana, '--depurar' in sys.argv):
+        apagar_servidor()          # cerrada la ventana, el servidor se va ya: la próxima apertura busca la versión nueva
         return
     if abrir_navegador():
         afinar_navegador(ventana)

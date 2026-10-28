@@ -952,6 +952,25 @@ function pintarComparacion() {
 }
 
 // ====================================================================== Ajustes
+// versión instalada, la publicada y lo que pasó la última vez que Cauce intentó actualizarse
+function tarjetaVersion() {
+  const t = h('<div class="tarjeta"><h3>Versión de Cauce</h3><div class="v-cont"><p>Buscando…</p></div><div class="acciones"><button class="btn chico">Buscar ahora</button></div></div>');
+  const pintarV = async () => {
+    const c = $('.v-cont', t);
+    try {
+      const r = await post('/api/actualizaciones', {});
+      const u = r.ultimo;
+      const fallo_ = u?.estado === 'error' ? `<p class="neg">La última vez que intentó actualizarse (${esc(u.cuando || '')}) no pudo: ${esc(u.motivo || '')}. Revisa la conexión a internet o que la carpeta de Cauce se pueda escribir.</p>` : '';
+      c.innerHTML = `<p>Tienes la <b>${esc(r.version)}</b>.${r.desarrollo ? ' Esta es una copia de desarrollo: se actualiza con git.' : r.apagada ? ' La actualización automática está apagada.' : ''}</p>
+        ${r.error ? `<p class="neg">No se pudo consultar GitHub: ${esc(r.error)}.</p>` : r.nueva ? `<p><b>Hay una versión nueva, la ${esc(r.nueva)}.</b> Cierra Cauce con Salir y vuelve a abrirlo: se instala sola al abrir.</p>` : `<p>Estás al día (lo último publicado es la ${esc(r.remota || r.version)}).</p>`}
+        ${fallo_}`;
+    } catch (e) { c.innerHTML = `<p class="neg">${esc(e.message)}</p>`; }
+  };
+  $('button', t).onclick = pintarV;
+  pintarV();
+  return t;
+}
+
 async function pAjustes() {
   let r;
   try { r = await get('/api/ajustes'); } catch (e) { fallo(e); return; }
@@ -1026,6 +1045,7 @@ async function pAjustes() {
     } catch (ex) { fallo(ex); }
   };
   probar();
+  P().append(tarjetaVersion());      // al fondo de Ajustes: la versión que tiene instalada y si hay una nueva
 }
 
 // ====================================================================== Glosario

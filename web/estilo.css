@@ -327,6 +327,8 @@ body.panel-amplio #mapa-caja { visibility: hidden; }
 
 /* ---------------------------------------------------------------- bienvenida */
 #bienvenida { position: absolute; inset: 0; background: var(--bg); z-index: var(--z-bienvenida); overflow-y: auto; }
+.version-esquina { position: absolute; right: 16px; bottom: 12px; font-size: 11.5px; color: var(--apagado); font-variant-numeric: tabular-nums; }
+.version-esquina b { color: var(--ok); font-weight: 600; }
 .bienv { min-height: 100%; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 48px; align-items: center; max-width: 1180px; margin: 0 auto; padding: 48px 40px; }
 .bienv h1 { font-size: clamp(30px, 3.2vw, 42px); margin: 0 0 10px; font-weight: 650; letter-spacing: -.03em; line-height: 1.08; }
 .bienv .lema { color: var(--tinta-2); font-size: 15px; margin: 0 0 26px; max-width: 54ch; line-height: 1.55; }

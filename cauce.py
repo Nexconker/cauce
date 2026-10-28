@@ -48,6 +48,10 @@ VERSION = actualizar.version_local(RAIZ)      # archivo VERSION (lo sube scripts
 
 LOCK = threading.RLock()
 ULTIMO_PEDIDO = [time.time()]   # para el apagado automático cuando se cierra la ventana
+AUTO_APAGAR = '--auto-apagar' in sys.argv     # lo arrancó el acceso directo: se apaga al cerrar la ventana
+SRV = [None]
+NUEVA = {'version': None, 'cuando': None, 'error': None}     # versión publicada más nueva que la que corre
+
 DOCS = {}        # id -> Documento
 TRABAJOS = {}    # id -> dict
 CORRIDAS = {}    # id -> dict(corrida, doc, nombre, cuando)
@@ -479,7 +483,8 @@ class ErrorApi(Exception):
 def api_get(ruta, q):
     p = ruta.strip('/').split('/')        # ['api', ...]
     if p[1] == 'estado':
-        return {'version': VERSION, 'actualizacion': actualizar.aviso_pendiente(RAIZ), 'docs': [d.info() for d in DOCS.values()],
+        return {'version': VERSION, 'actualizacion': actualizar.aviso_pendiente(RAIZ), 'nueva': NUEVA['version'],
+                'docs': [d.info() for d in DOCS.values()],
                 'motores': {v: motor.version_dll(v) for v in motor.DLLS}, 'recientes': leer_config().get('recientes', [])}
     if p[1] == 'textos':
         return textos.todo()
@@ -560,6 +565,21 @@ def api_get(ruta, q):
 def api_post(ruta, cuerpo):
     global CONV
     p = ruta.strip('/').split('/')
+    if p[1] == 'apagar':
+        # la ventana se cerró (lo pide lanzar.pyw): sin corridas en curso, el servidor se apaga ya en vez de esperar el
+        # minuto y medio sin latidos; así la próxima apertura busca la versión nueva
+        if not AUTO_APAGAR:
+            return {'ok': False, 'motivo': 'servidor abierto a mano'}
+        if any(t['fase'] == 'en curso' for t in list(TRABAJOS.values())):
+            return {'ok': False, 'motivo': 'hay una corrida en curso'}
+        threading.Timer(0.3, SRV[0].shutdown).start()
+        return {'ok': True}
+    if p[1] == 'actualizaciones':
+        # Ajustes › Actualizaciones: buscar ahora y lo que pasó la última vez que se intentó actualizar
+        buscar_nueva()
+        return {'version': VERSION, 'remota': NUEVA.get('remota'), 'nueva': NUEVA['version'], 'error': NUEVA['error'],
+                'cuando': NUEVA['cuando'], 'ultimo': actualizar.ultimo_intento(RAIZ),
+                'desarrollo': os.path.isdir(os.path.join(RAIZ, '.git')), 'apagada': actualizar.apagada(RAIZ)}
     if p[1] == 'abrir':
         r = cuerpo['ruta']
         if r.lower().endswith('.json'):
@@ -1098,6 +1118,16 @@ class Servidor(socketserver.ThreadingMixIn, http.server.HTTPServer):
     allow_reuse_address = True
 
 
+def buscar_nueva():
+    """Mira la versión publicada; si es más nueva que la que corre, la interfaz avisa que hay que cerrar y abrir."""
+    try:
+        remota = actualizar.version_remota(8)
+        NUEVA.update(remota=remota, version=remota if actualizar.tupla(remota) > actualizar.tupla(VERSION) else None, error=None)
+    except Exception as ex:
+        NUEVA['error'] = f'{type(ex).__name__}: {ex}'[:200]
+    NUEVA['cuando'] = time.strftime('%Y-%m-%d %H:%M')
+
+
 def main():
     global CONV
     if '--sin-actualizar' not in sys.argv:
@@ -1112,7 +1142,16 @@ def main():
     sin_nav = '--sin-navegador' in sys.argv
     os.makedirs(os.path.join(TRABAJO, 'escenarios'), exist_ok=True)
     srv = Servidor((HOST, PUERTO), Manejador)
+    SRV[0] = srv
     url = f'http://{HOST}:{PUERTO}/'
+    if not os.path.isdir(os.path.join(RAIZ, '.git')) and not actualizar.apagada(RAIZ):
+        # con Cauce abierto días seguidos: se vuelve a mirar cada 6 horas
+        def vigilar_version():
+            time.sleep(5)
+            while True:
+                buscar_nueva()
+                time.sleep(6 * 3600)
+        threading.Thread(target=vigilar_version, daemon=True).start()
     print(f'Cauce {VERSION} en {url}  (Ctrl+C para cerrar)', flush=True)
     if not sin_nav:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()

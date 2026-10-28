@@ -8,11 +8,24 @@ import { alternar3d, estaAbierta, cerrar3d } from './vista3d.js';
 import { abrirMover, abrirMoverTramo, cerrarMover, esperandoOrigen, ponerOrigen } from './mover.js';
 
 // ====================================================================== modelos abiertos
+let avisoNueva = false;
+// la versión instalada, en la esquina de la pantalla de inicio (y si hay una nueva publicada)
+function pintarVersion() {
+  const v = document.getElementById('version-esquina');
+  if (!v || !S.version) return;
+  v.innerHTML = `Cauce ${esc(S.version)}${S.nueva ? ` · <b>hay una versión nueva (${esc(S.nueva)})</b>: ciérralo con Salir y vuelve a abrirlo` : ''}`;
+}
 async function refrescarDocs() {
   const e = await get('/api/estado');
   if (e.actualizacion) aviso(`Cauce se actualizó a la versión ${e.actualizacion.a} (antes ${e.actualizacion.de}).`, 'ok');
+  if (e.nueva && !avisoNueva) {
+    avisoNueva = true;
+    aviso(`Hay una versión nueva de Cauce (${e.nueva}). Ciérralo con Salir y vuelve a abrirlo: se instala sola.`, 'ok', 15000);
+  }
   S.docs = e.docs;
   S.recientes = e.recientes;
+  S.version = e.version; S.nueva = e.nueva || null;
+  pintarVersion();
   pintarPestanas();
   return e;
 }
@@ -201,6 +214,8 @@ function bienvenida() {
         <div><b>Consignas de las FCV</b><span>Corrida con los patrones en 1 para ver cuánto pide cada tanque y proponer consignas.</span></div>
         <div><b>Comparar versiones</b><span>Qué cambió entre dos .inp o dos escenarios, marcado en el mapa.</span></div>
       </div></div></div>`;
+  b.append(h('<div id="version-esquina" class="version-esquina"></div>'));
+  pintarVersion();
   $('#w-abrir').onclick = abrirDialogo;
   $('#w-nuevo').onclick = nuevoModelo;
   $('#w-esc').onclick = async () => { const r = await explorar({ titulo: 'Abrir un escenario guardado', filtro: ['.json'] }); if (r) abrir(r); };
@@ -717,6 +732,7 @@ async function iniciar() {
   buscador();
   // latido: le dice al servidor que la ventana sigue abierta (si se lanzó con apagado automático)
   latido = setInterval(() => { fetch('/api/estado').catch(() => {}); }, 20000);
+  setTimeout(() => refrescarDocs().catch(() => {}), 12000);      // el servidor mira GitHub a los 5 s de arrancar
   const e = await refrescarDocs();
   if (S.docs.length) await activar(S.docs[0].id); else { bienvenida(); mostrarPanel('modelo'); }
   leyenda();

@@ -134,8 +134,29 @@ def _igual(a, b):
         return fa.read() == fb.read()
 
 
-def actualizar(raiz, timeout=4):
-    """{'estado': 'al_dia'|'actualizado'|'omitido'|'error', 'local', 'remota', 'motivo'}. Nunca lanza."""
+def actualizar(raiz, timeout=6):
+    """{'estado': 'al_dia'|'actualizado'|'omitido'|'error', 'local', 'remota', 'motivo'}. Nunca lanza.
+    El resultado queda en trabajo/ultimo_intento.json para que Ajustes muestre por qué no se actualizó."""
+    r = _actualizar(raiz, timeout)
+    if r['estado'] != 'omitido':
+        try:
+            os.makedirs(os.path.join(raiz, 'trabajo'), exist_ok=True)
+            with open(os.path.join(raiz, 'trabajo', 'ultimo_intento.json'), 'w', encoding='utf-8') as fh:
+                json.dump(dict(r, cuando=time.strftime('%Y-%m-%d %H:%M')), fh, ensure_ascii=False)
+        except OSError:
+            pass
+    return r
+
+
+def ultimo_intento(raiz):
+    try:
+        with open(os.path.join(raiz, 'trabajo', 'ultimo_intento.json'), encoding='utf-8') as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return None
+
+
+def _actualizar(raiz, timeout):
     local = version_local(raiz)
     if os.path.isdir(os.path.join(raiz, '.git')):
         return {'estado': 'omitido', 'local': local, 'motivo': 'copia de desarrollo (git)'}

@@ -130,6 +130,12 @@ persona) ni `lib/` (los paquetes que instaló «Instalar Cauce.bat»). Sin inter
 carpeta con `.git` (la de desarrollo) no se actualiza sola. Para apagarla: variable `CAUCE_SIN_ACTUALIZAR=1` o
 `"actualizar": false` en `trabajo/config.json`.
 
+Desde la 1.3.1, al cerrar la ventana el servidor de Cauce se apaga enseguida (antes seguía un minuto y medio, y si se
+volvía a abrir en ese rato no buscaba la versión nueva); si al abrir encuentra vivo un servidor más viejo, lo apaga y
+se actualiza. Con Cauce abierto, mira cada 6 horas si hay una versión nueva y avisa que hay que cerrarlo y volverlo a
+abrir. La versión instalada se ve en la esquina de la pantalla de inicio y al fondo de Ajustes, con lo publicado, un
+botón «Buscar ahora» y, si la última actualización falló, el motivo.
+
 Publicar una versión (desde la carpeta del repositorio, con git y acceso a la cuenta):
 
     python -I scripts/publicar.py 1.2.0 "Qué cambió"

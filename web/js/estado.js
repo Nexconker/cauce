@@ -62,10 +62,10 @@ export function hora(h) { const m = Math.round(h * 60); return `${String(Math.fl
 export function h(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
 
 // aviso abajo a la derecha: se pausa con el ratón encima o con la pestaña oculta; clic para cerrarlo
-export function aviso(texto, tipo = '') {
+export function aviso(texto, tipo = '', ms = 0) {
   const el = h(`<div class="toast ${tipo}" role="${tipo === 'error' ? 'alert' : 'status'}"><span>${esc(texto)}</span></div>`);
   $('#toasts').append(el);
-  let restante = tipo === 'error' ? 9000 : 4500, inicio = 0, t = null;
+  let restante = ms || (tipo === 'error' ? 9000 : 4500), inicio = 0, t = null;
   const salir = () => { clearTimeout(t); document.removeEventListener('visibilitychange', vis); el.classList.add('saliendo'); setTimeout(() => el.remove(), 160); };
   const correr = () => { inicio = Date.now(); t = setTimeout(salir, restante); };
   const pausar = () => { clearTimeout(t); restante = Math.max(800, restante - (Date.now() - inicio)); };
