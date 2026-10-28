@@ -114,6 +114,9 @@ export const mapa = {
     this.cx = (x0 + x1) / 2; this.cy = (y0 + y1) / 2;
     this.pedir();
   },
+  // el encuadre de cada pestaña: app.js lo guarda al dejarla y lo pone al volver (en vez del encuadre de toda la red)
+  vista() { return { s: this.s, cx: this.cx, cy: this.cy }; },
+  ponerVista(v) { this.s = v.s; this.cx = v.cx; this.cy = v.cy; this.encuadrarAlCrecer = false; this.pedir(); },
   irA(clase, i, s) {
     const M = S.M;
     let x, y;

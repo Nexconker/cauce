@@ -47,11 +47,13 @@ async function abrir(ruta) {
     aviso(`Abierto ${info.nombre}`, 'ok');
   } catch (e) { fallo(e); }
 }
+// lo que se estaba mirando en cada pestaña (encuadre del mapa y elemento elegido): al volver a ella queda igual
+const vistas = {};
 async function cerrarDoc(id) {
   const d = S.docs.find((x) => x.id === id);
   if (d?.sin_guardar && !(await confirmarCambios([d], 'cerrar'))) return;
   await post('/api/cerrar', { id });
-  delete S.ultima[id]; delete S.trabajos[id]; delete S.progresos[id];
+  delete S.ultima[id]; delete S.trabajos[id]; delete S.progresos[id]; delete vistas[id];
   if (S.doc === id) { S.doc = null; S.M = null; S.corrida = null; S.resumen = null; S.res = {}; S.comparacion = null; }
   await refrescarDocs();
   if (!S.doc && S.docs.length) await activar(S.docs[S.docs.length - 1].id);
@@ -59,10 +61,14 @@ async function cerrarDoc(id) {
 }
 async function activar(id) {
   const cambia = S.doc !== id;
+  if (cambia && S.doc && S.M) vistas[S.doc] = { ...mapa.vista(), sel: S.sel && { clase: S.sel.clase, id: S.selId } };
   S.doc = id;
   if (cambia) { S.corrida = null; S.resumen = null; S.res = {}; S.T = 0; S.comparacion = null; S.hallazgos = null; S.consignas = null; S.sel = null; S.resaltar = null; S.corridaComp = null; S.errorLectura = null; }
+  const v = cambia ? vistas[id] : null;
+  if (v?.sel) { S.sel = { clase: v.sel.clase, i: -1 }; S.selId = v.sel.id; }      // cargarModelo la ubica en el modelo
   document.body.classList.remove('sin-modelo');
   await cargarModelo(!cambia);
+  if (v) mapa.ponerVista(v);
   // al volver a una pestaña se recupera la última corrida que se vio (o que terminó) en ese modelo; después de
   // recargar la página, la más reciente que el servidor tenga en memoria
   if (cambia) {
@@ -202,7 +208,7 @@ function bienvenida() {
   b.innerHTML = `<div class="bienv"><div>
       <h1>Revisa, corre y compara modelos de EPANET sin adivinar qué pasó.</h1>
       <p class="lema">El mismo motor de cálculo del programa EPANET, con un mapa que se entiende, revisión antes de correr, escenarios sin copiar archivos y una explicación en cada paso. Todo corre en tu PC.</p>
-      <div class="acc"><button class="btn prim" id="w-abrir">Abrir un modelo .inp</button><button class="btn" id="w-nuevo">Empezar uno desde cero</button><button class="btn" id="w-esc">Abrir un escenario guardado</button><button class="btn" id="w-rpt" title="Avisos, paso a paso, resultados y el texto completo, en otra ventana">Leer un reporte .rpt</button></div>
+      <div class="acc"><button class="btn prim" id="w-abrir">Abrir un modelo .inp</button><button class="btn" id="w-nuevo">Empezar uno desde cero</button><button class="btn" id="w-esc">Abrir un escenario guardado</button><button class="btn" id="w-rpt" title="Avisos, paso a paso, resultados y el texto completo del reporte">Leer un reporte .rpt</button></div>
       ${S.docs.length ? '<div class="rec-t">Abiertos ahora</div><div id="w-abiertos"></div>' : ''}
       <div class="rec-t">Abiertos hace poco</div><div id="w-rec"></div>
     </div>

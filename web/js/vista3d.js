@@ -20,6 +20,7 @@ const opc = Object.assign({ modo: 'presion', flujo: true, nombres: true, exag: n
 let tres = null;          // promesa de carga de three.js
 let V = null;             // la escena del modelo abierto
 let R = null;             // renderer, cámara y controles: se crean una vez y sirven para cada modelo
+const camaras = {};       // por pestaña, dónde quedó la cámara: al volver a ese modelo sigue ahí
 let abierta = false;
 
 function leerOpc() { try { return JSON.parse(localStorage.getItem(CLAVE) || '{}'); } catch (e) { return {}; } }
@@ -149,6 +150,7 @@ export function escribirLeyenda() {
 function construir() {
   const T3 = window.THREE;
   const nuevoDoc = !V || V.doc !== S.doc;
+  if (V && nuevoDoc) camaras[V.doc] = { obj: R.controles.target.clone(), pos: R.camara.position.clone() };
   if (V) {      // la escena anterior suelta su memoria de video; el renderer y la cámara se quedan
     V.escena.traverse((o) => { o.geometry?.dispose(); [].concat(o.material || []).forEach((m) => m.dispose()); });
   }
@@ -362,7 +364,8 @@ function construir() {
   colocarTodo();
   ponerEventos(canvas);
   redimensionar();
-  if (nuevoDoc) volar(cajaToda(), true);
+  if (nuevoDoc && camaras[S.doc]) { controles.target.copy(camaras[S.doc].obj); camara.position.copy(camaras[S.doc].pos); controles.update(); }
+  else if (nuevoDoc) volar(cajaToda(), true);
 }
 function esTubo(t) { return t === 'PIPE' || t === 'CV'; }
 // la altura de un nudo en el dibujo: la cota (o la carga, si es embalse)
