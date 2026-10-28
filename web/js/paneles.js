@@ -315,14 +315,16 @@ function seguir(doc) {
   };
   paso();
 }
-export async function usarCorrida(id) {
+// o.modo: al volver a una pestaña, el coloreado que tenía con esta misma corrida
+export async function usarCorrida(id, o) {
   const doc = S.doc;
   const r = await get(`/api/corrida/${id}`);
   if (S.doc !== doc) return;           // se cambió de pestaña mientras llegaba la respuesta
   S.corrida = id; S.ultima[doc] = id; S.resumen = r.resumen; S.res = {};
   S.horas = r.resumen.horas || []; S.T = S.horas.length; S.hora = Math.min(S.hora, Math.max(0, S.T - 1)); S.t = Math.min(S.t ?? S.hora, Math.max(0, S.T - 1));
+  if (S.variable === 'calidad' && !r.resumen.calidad?.variables?.includes('calidad')) S.variable = 'presion';     // corrida sin calidad
   await cargarVariable(S.variable);
-  bus.emit('corrida');
+  bus.emit('corrida', o);
   mostrarPanel();
 }
 export async function cargarVariable(v) {

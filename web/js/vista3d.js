@@ -15,16 +15,17 @@ const PAL = {
 };
 const CLASES = [[0, 250, 1.3], [250, 450, 1.9], [450, 800, 2.7], [800, 1300, 3.6], [1300, 2100, 4.8], [2100, 1e9, 6.4]];   // mm y px
 const H_TANQUE = 0.9;
-const CLAVE = 'cauce-3d';
-const opc = Object.assign({ modo: 'presion', flujo: true, nombres: true, exag: null }, leerOpc());
+// colorear, flujo, nombres y exageración: son de cada pestaña, como los demás ajustes de vista; un modelo recién
+// abierto sale con estos (la exageración, la que le calcula su relieve)
+const OPC = { modo: 'presion', flujo: true, nombres: true, exag: null };
+const opcs = {};          // por pestaña
+let opc = { ...OPC };     // las de la pestaña de la escena
 let tres = null;          // promesa de carga de three.js
 let V = null;             // la escena del modelo abierto
 let R = null;             // renderer, cámara y controles: se crean una vez y sirven para cada modelo
 const camaras = {};       // por pestaña, dónde quedó la cámara: al volver a ese modelo sigue ahí
 let abierta = false;
 
-function leerOpc() { try { return JSON.parse(localStorage.getItem(CLAVE) || '{}'); } catch (e) { return {}; } }
-function guardarOpc() { try { localStorage.setItem(CLAVE, JSON.stringify(opc)); } catch (e) { /* sin almacenamiento */ } }
 const reducido = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function script(src) {
@@ -47,7 +48,7 @@ function cargarTres() {
 
 export function estaAbierta() { return abierta; }
 // para revisar desde la consola (como window.VisorRed del visor web)
-window.VistaRed3D = { estado: () => V, opciones: opc, cuadro: () => cuadro(performance.now()) };
+window.VistaRed3D = { estado: () => V, opciones: () => opc, cuadro: () => cuadro(performance.now()) };
 
 export async function abrir3d() {
   if (!S.M || abierta) return;
@@ -57,8 +58,8 @@ export async function abrir3d() {
   capa().hidden = false;
   document.getElementById('v3d').classList.toggle('cruz', CRUZ(S.herramienta));
   try { await cargarTres(); } catch (e) { fallo(e); cerrar3d(); return; }
-  if (!abierta) return;
   await resultados();
+  if (!abierta) return;           // se cerró (o se pasó a una pestaña en 2D) mientras cargaba
   if (!V || V.M !== S.M) construir();
   pintarControles(); escribirLeyenda();
   V.sucio = V.necesita = V.camMovida = true;
@@ -114,11 +115,11 @@ function pintarControles() {
     <label class="exag">Exageración vertical <input type="range" id="v3d-exag" min="1" max="40" step="1" value="${V.exag}"><b id="v3d-exag-v">×${V.exag}</b></label>
     <button class="btn chico" id="v3d-toda">Toda la red</button>`;
   $('#v3d-modo').value = opc.modo;
-  $('#v3d-modo').onchange = (e) => { opc.modo = e.target.value; guardarOpc(); V.sucio = true; escribirLeyenda(); };
-  $('#v3d-flujo').onchange = (e) => { opc.flujo = e.target.checked; guardarOpc(); V.particulas.visible = opc.flujo && hay; V.necesita = true; };
-  $('#v3d-nom').onchange = (e) => { opc.nombres = e.target.checked; guardarOpc(); V.etiSucias = true; };
+  $('#v3d-modo').onchange = (e) => { opc.modo = e.target.value; V.sucio = true; escribirLeyenda(); };
+  $('#v3d-flujo').onchange = (e) => { opc.flujo = e.target.checked; V.particulas.visible = opc.flujo && hay; V.necesita = true; };
+  $('#v3d-nom').onchange = (e) => { opc.nombres = e.target.checked; V.etiSucias = true; };
   $('#v3d-exag').oninput = (e) => {
-    V.exag = opc.exag = Number(e.target.value); guardarOpc();
+    V.exag = opc.exag = Number(e.target.value);
     $('#v3d-exag-v').textContent = `×${V.exag}`;
     colocarTodo(); V.necesita = V.camMovida = true;
   };
@@ -151,6 +152,7 @@ function construir() {
   const T3 = window.THREE;
   const nuevoDoc = !V || V.doc !== S.doc;
   if (V && nuevoDoc) camaras[V.doc] = { obj: R.controles.target.clone(), pos: R.camara.position.clone() };
+  if (nuevoDoc) opc = opcs[S.doc] || (opcs[S.doc] = { ...OPC });
   if (V) {      // la escena anterior suelta su memoria de video; el renderer y la cámara se quedan
     V.escena.traverse((o) => { o.geometry?.dispose(); [].concat(o.material || []).forEach((m) => m.dispose()); });
   }

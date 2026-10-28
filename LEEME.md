@@ -21,7 +21,10 @@ Excel).
 ## Qué hace
 
 - **Modelo**: abre uno o varios `.inp` (pestañas arriba), con conteos, opciones explicadas y exportación. Al volver
-  a una pestaña, el mapa (2D o 3D) y el elemento elegido quedan como estaban.
+  a una pestaña, el mapa (2D o 3D) y el elemento elegido quedan como estaban. Cada pestaña tiene sus propios ajustes
+  de vista: cómo se colorea, la variable de la barra de tiempo, rótulos, flechas, grosor por caudal, si está en 3D y
+  las opciones del 3D; un modelo recién abierto sale con los de siempre. La hora de la barra es la misma en todas,
+  para comparar los modelos a la misma hora.
 - **Nuevo**: empieza un modelo desde cero (nombre, unidades y fórmula de pérdidas, y dónde guardarlo). Abre con la
   edición puesta: un embalse o tanque, nudos y tuberías. A diferencia de los `.inp` que vienen de afuera, este sí
   se guarda en su propio archivo (Guardar o Ctrl+S); los demás nunca se sobrescriben.

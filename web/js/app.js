@@ -5,7 +5,7 @@ import { elegirReporte, pestanasReportes, reporteActivo, mostrarModelo } from '.
 import { mostrarPanel, panelActual, revisar, usarCorrida, cargarVariable, quitarResaltado, guardar } from './paneles.js';
 import { mostrarInspector, cerrarInspector } from './inspector.js';
 import { edicionGrupo } from './informes.js';
-import { alternar3d, estaAbierta, cerrar3d } from './vista3d.js';
+import { alternar3d, estaAbierta, abrir3d, cerrar3d } from './vista3d.js';
 import { abrirMover, abrirMoverTramo, cerrarMover, esperandoOrigen, ponerOrigen } from './mover.js';
 
 // ====================================================================== modelos abiertos
@@ -53,8 +53,21 @@ async function abrir(ruta) {
     aviso(`Abierto ${info.nombre}`, 'ok');
   } catch (e) { fallo(e); }
 }
-// lo que se estaba mirando en cada pestaña (encuadre del mapa y elemento elegido): al volver a ella queda igual
+// lo que se estaba mirando en cada pestaña (encuadre del mapa, elemento elegido y ajustes de vista): al volver a ella
+// queda igual
 const vistas = {};
+// Los ajustes de vista son de cada pestaña: coloreado, variable de la barra de tiempo, rótulos, flechas, grosor por
+// caudal y 3D. Un modelo recién abierto sale con estos. La hora de la barra sí pasa de una a otra, para comparar.
+const AJUSTES = { modo: 'tipo', variable: 'presion', envolvente: false, rotulos: true, flechas: true, grosor: false, tres: false };
+function ajustesActuales() {
+  // la comparación no pasa a otra pestaña: lo que estaba en Diferencias vuelve en Resultados
+  return { modo: S.modo === 'diferencias' ? 'resultado' : S.modo, variable: S.variable, envolvente: S.envolvente, corrida: S.corrida,
+    rotulos: $('#ver-rotulos').checked, flechas: verFlechas(), grosor: verGrosor(), tres: estaAbierta() };
+}
+function ponerAjustes(a) {
+  S.modo = a.modo; S.variable = a.variable; S.envolvente = a.envolvente;
+  $('#ver-rotulos').checked = a.rotulos; $('#ver-flechas').checked = a.flechas; $('#ver-grosor').checked = a.grosor;
+}
 async function cerrarDoc(id) {
   const d = S.docs.find((x) => x.id === id);
   if (d?.sin_guardar && !(await confirmarCambios([d], 'cerrar'))) return;
@@ -68,27 +81,31 @@ async function cerrarDoc(id) {
 async function activar(id) {
   mostrarModelo();
   const cambia = S.doc !== id;
-  if (cambia && S.doc && S.M) vistas[S.doc] = { ...mapa.vista(), sel: S.sel && { clase: S.sel.clase, id: S.selId } };
+  if (cambia && S.doc && S.M) vistas[S.doc] = { ...mapa.vista(), sel: S.sel && { clase: S.sel.clase, id: S.selId }, ajustes: ajustesActuales() };
   S.doc = id;
   if (cambia) { S.corrida = null; S.resumen = null; S.res = {}; S.T = 0; S.comparacion = null; S.hallazgos = null; S.consignas = null; S.sel = null; S.resaltar = null; S.corridaComp = null; S.errorLectura = null; }
   const v = cambia ? vistas[id] : null;
+  const aj = v?.ajustes || AJUSTES;
+  if (cambia) { ponerAjustes(aj); if (!aj.tres && estaAbierta()) cerrar3d(); }
   if (v?.sel) { S.sel = { clase: v.sel.clase, i: -1 }; S.selId = v.sel.id; }      // cargarModelo la ubica en el modelo
   document.body.classList.remove('sin-modelo');
   await cargarModelo(!cambia);
   if (v) mapa.ponerVista(v);
   // al volver a una pestaña se recupera la última corrida que se vio (o que terminó) en ese modelo; después de
-  // recargar la página, la más reciente que el servidor tenga en memoria
+  // recargar la página, la más reciente que el servidor tenga en memoria. Si es la misma que había al dejarla, el
+  // mapa vuelve con el coloreado que tenía; si terminó otra mientras tanto, se ven sus resultados.
   if (cambia) {
     let cid = S.ultima[id];
     if (!cid) {
       try { const cs = (await get('/api/corridas')).corridas.filter((c) => c.doc === id && c.fase !== 'fallo'); cid = cs.length ? cs[cs.length - 1].id : null; } catch (e) { /* sin lista */ }
     }
-    if (cid && S.doc === id) await usarCorrida(cid).catch(() => { delete S.ultima[id]; });
+    if (cid && S.doc === id) await usarCorrida(cid, cid === aj.corrida ? { modo: aj.modo } : undefined).catch(() => { delete S.ultima[id]; });
   }
   pintarPestanas();
   $('#bienvenida').hidden = true;
   pintarLongitud();
   revisar().catch(() => {});
+  if (cambia && aj.tres && S.doc === id && !estaAbierta()) await abrir3d();
 }
 async function cargarModelo(mantener) {
   const r = await get(`/api/doc/${S.doc}/modelo`);
@@ -339,8 +356,10 @@ function actualizarModos() {
   leyenda();
   pintarTiempo();
 }
-bus.on('corrida', async () => {
-  if (S.T) S.modo = 'resultado'; actualizarModos(); mapa.estilar(); leyenda(); if (S.sel) mostrarInspector();
+// una corrida pone el mapa en Resultados, salvo al volver a una pestaña con la misma corrida (o.modo: el que tenía)
+bus.on('corrida', async (o) => {
+  if (o?.modo) S.modo = o.modo; else if (S.T) S.modo = 'resultado';
+  actualizarModos(); mapa.estilar(); leyenda(); if (S.sel) mostrarInspector();
   if (verFlechas() || verGrosor()) { await cargarVariable('caudal').catch(() => {}); mapa.estilar(); leyenda(); }
 });
 // flechas con el sentido del agua y grosor por caudal: necesitan el caudal de la corrida aunque el mapa esté
@@ -707,16 +726,13 @@ async function iniciar() {
   let guardado = null; try { guardado = localStorage.getItem('cauce-panel-plegado'); } catch (e) { /* sin almacenamiento */ }
   if (guardado === '1') plegar(true);
   $('#modo-color').onchange = async (e) => { S.modo = e.target.value; if (S.modo === 'resultado') await cargarVariable(S.variable).catch(fallo); mapa.estilar(); leyenda(); };
+  // rótulos, flechas y grosor son de la pestaña (ver AJUSTES): no se guardan para las demás
   $('#ver-rotulos').onchange = () => mapa.pedir();
-  try { $('#ver-flechas').checked = localStorage.getItem('cauce-flechas') !== '0'; } catch (e) { /* sin almacenamiento */ }
   $('#ver-flechas').onchange = async () => {
-    try { localStorage.setItem('cauce-flechas', verFlechas() ? '1' : '0'); } catch (e) { /* sin almacenamiento */ }
     if (verFlechas() && S.corrida) await cargarVariable('caudal').catch(fallo);
     mapa.pedir(); leyenda();
   };
-  try { $('#ver-grosor').checked = localStorage.getItem('cauce-grosor') === '1'; } catch (e) { /* sin almacenamiento */ }
   $('#ver-grosor').onchange = async () => {
-    try { localStorage.setItem('cauce-grosor', verGrosor() ? '1' : '0'); } catch (e) { /* sin almacenamiento */ }
     if (verGrosor() && S.corrida) await cargarVariable('caudal').catch(fallo);
     mapa.estilar(); leyenda();
   };
