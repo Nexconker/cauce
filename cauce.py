@@ -381,7 +381,8 @@ def resultados_ordenados(rid, var, doc):
 
 # ====================================================================== explorador de archivos
 IMAGENES = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.bmp': 'image/bmp', '.gif': 'image/gif', '.webp': 'image/webp'}
-EXT = ('.inp', '.xlsx', '.xlsm', '.json', '.csv', '.dat', '.txt', '.scn') + tuple(IMAGENES)
+EXT = ('.inp', '.xlsx', '.xlsm', '.json', '.csv', '.dat', '.txt', '.scn', '.rpt', '.log') + tuple(IMAGENES)
+REPORTES = ('.rpt', '.txt', '.log')     # lo que abre el lector de reportes
 CALIBRACION = os.path.join(TRABAJO, 'calibracion')     # mediciones de campo por modelo
 
 
@@ -963,6 +964,15 @@ class Manejador(http.server.BaseHTTPRequestHandler):
     def _error(self, codigo, msg):
         self._json({'error': msg}, codigo)
 
+    def _texto(self, texto):
+        cuerpo = texto.encode('utf-8')
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/plain; charset=utf-8')
+        self.send_header('Content-Length', str(len(cuerpo)))
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+        self.wfile.write(cuerpo)
+
     def _ajeno(self, post=False):
         # Solo se atiende a la propia ventana de Cauce. Una página de internet abierta en el navegador podría mandar
         # pedidos a 127.0.0.1 (y desde que hay scripts, eso sería correr código en este PC):
@@ -1013,6 +1023,20 @@ class Manejador(http.server.BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(datos)
                 return
+            if u.path == '/api/rpt':
+                # un reporte de EPANET del disco, para el lector de reportes: texto plano, no JSON (pasan de 20 MB)
+                r = q.get('ruta', '')
+                if not r.lower().endswith(REPORTES) or not os.path.isfile(r):
+                    return self._error(404, 'No encuentro ese reporte.')
+                with open(r, encoding='latin-1', errors='replace') as fh:
+                    return self._texto(fh.read())
+            if u.path.startswith('/api/corrida/') and u.path.endswith('/rpt'):
+                c = CORRIDAS.get(u.path.strip('/').split('/')[2])
+                if c is None:
+                    return self._error(404, 'Esa corrida ya no está en memoria: vuelve a correr el modelo.')
+                if not getattr(c['corrida'], 'reporte', ''):
+                    return self._error(404, 'Esa corrida no dejó reporte (sigue en curso o se canceló antes de empezar).')
+                return self._texto(c['corrida'].reporte)
             if u.path.startswith('/api/'):
                 return self._json(api_get(u.path, q))
             return self._estatico(u.path)

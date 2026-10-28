@@ -1,6 +1,6 @@
 // Panel Informes: perfil entre dos nudos, frecuencia, flujo del sistema, tablas exportables y energía, sobre la
 // corrida activa. También la edición en grupo (desde una tabla filtrada o desde un área del mapa).
-import { S, bus, get, post, binario, esc, n, h, hora, aviso, fallo, modal, formulario, explorar, conjunto, esqueleto, $, $$, U, nombreCalidad, claseTexto } from './estado.js';
+import { S, bus, get, post, binario, esc, n, h, hora, aviso, fallo, modal, formulario, explorar, conjunto, esqueleto, $, $$, U, nombreCalidad, claseTexto, elegirReporte } from './estado.js';
 import { mapa } from './mapa.js';
 import { grafica, ajustarCanvas } from './grafica.js';
 
@@ -22,9 +22,10 @@ const hayCalidad = () => !!S.resumen?.calidad?.variables?.includes('calidad');
 const csvNum = (x, d = 3) => (Number.isFinite(x) ? x.toFixed(d).replace(/\.?0+$/, '').replace('.', ',') : '');
 
 export async function pInformes() {
-  P().innerHTML = `<div class="i-cab"><h1>Informes</h1><button class="btn chico" id="i-amplio" aria-pressed="false" title="Usar todo el ancho para leer las tablas (el mapa vuelve al reducir)">Ampliar</button></div>
+  P().innerHTML = `<div class="i-cab"><h1>Informes</h1><span class="i-botones"><button class="btn chico" id="i-rpt" title="Abrir un reporte .rpt de EPANET en otra ventana: avisos, paso a paso, resultados y texto">Leer un .rpt</button><button class="btn chico" id="i-amplio" aria-pressed="false" title="Usar todo el ancho para leer las tablas (el mapa vuelve al reducir)">Ampliar</button></span></div>
     <p class="sub">Sobre la corrida que estás viendo${S.resumen ? ` (motor ${esc(S.resumen.version)})` : ''}. La hora es la de la barra de tiempo.</p>
     <div class="seg pestanas-d" id="i-tabs">${TABS.map(([k, t]) => `<button data-k="${k}">${t}</button>`).join('')}</div><div id="i-cont" style="margin-top:14px"></div>`;
+  $('#i-rpt').onclick = () => elegirReporte(S.doc || '');
   const amp = $('#i-amplio');
   const pintarAmp = () => { const on = document.body.classList.contains('panel-amplio'); amp.setAttribute('aria-pressed', String(on)); amp.textContent = on ? 'Reducir' : 'Ampliar'; };
   amp.onclick = () => { document.body.classList.toggle('panel-amplio'); pintarAmp(); };

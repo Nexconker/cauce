@@ -1,5 +1,5 @@
 // Paneles de la izquierda: Modelo, Revisión, Correr, Escenario, Consignas, Comparar y Glosario.
-import { S, bus, get, post, binario, esc, n, h, hora, aviso, fallo, modal, formulario, explorar, conjunto, esqueleto, u, U, $, $$, nombreNudo, nombreEscenario, nombreCalidad, describir, textoScn } from './estado.js';
+import { S, bus, get, post, binario, esc, n, h, hora, aviso, fallo, modal, formulario, explorar, conjunto, esqueleto, u, U, $, $$, nombreNudo, nombreEscenario, nombreCalidad, describir, textoScn, abrirReporte } from './estado.js';
 import { mapa } from './mapa.js';
 import { grafica, barras } from './grafica.js';
 import { pDatos } from './datos.js';
@@ -406,6 +406,11 @@ function pintarResumen(r) {
     <div class="cifra ${r.sin_converger ? (r.sin_converger > 100 ? 'mal' : 'ojo') : 'bien'}"><div class="v">${n(r.sin_converger, 0)}</div><div class="t">pasos sin converger (llegan a ${n(r.trials, 0)} iteraciones)</div></div>
     <div class="cifra ${dif === null || dif === undefined ? '' : clase(Math.abs(dif), meta, meta * 2.5)}"><div class="v">${dif === null || dif === undefined ? '—' : `${dif > 0 ? '+' : ''}${n(dif, 2)}`}<small>%</small></div><div class="t">producción vs consumo (meta ±${n(meta, 1)} %)</div></div>
   </div>`));
+  if (S.corrida) {
+    const b = h('<div class="acciones-fila"><button class="btn chico" data-t="El reporte de EPANET de esta corrida en otra ventana: avisos por elemento, paso a paso y el texto completo con buscador. Cada elemento se puede ver en el mapa.">Leer el reporte de EPANET</button></div>');
+    $('button', b).onclick = () => abrirReporte({ corrida: S.corrida, doc: S.doc, nombre: `${S.info?.nombre || 'Modelo'} · corrida` });
+    cont.append(b);
+  }
   if (bal) {
     const s = h(`<div class="sec"><div class="eti">Producción y consumo (${esc(U('caudal'))})</div><p class="sub" style="margin:4px 0">Producción media ${n(bal.produccion, dq(bal.produccion))} · consumo medio ${n(bal.consumo, dq(bal.consumo))} · a tanques ${n(bal.almacenamiento, dq(bal.almacenamiento))}</p><canvas class="grafica"></canvas></div>`);
     cont.append(s);

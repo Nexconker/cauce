@@ -1,5 +1,5 @@
 // Arranque de Cauce: pestañas de modelos, bienvenida, buscador, barra de tiempo y herramientas de edición.
-import { S, bus, get, post, esc, n, h, hora, aviso, fallo, modal, formulario, explorar, $, $$, nombreNudo, nombreTramo, claseTexto, U, nombreEscenario, nombreCalidad, longitudAuto } from './estado.js';
+import { S, bus, get, post, esc, n, h, hora, aviso, fallo, modal, formulario, explorar, $, $$, nombreNudo, nombreTramo, claseTexto, U, nombreEscenario, nombreCalidad, longitudAuto, elegirReporte } from './estado.js';
 import { mapa, leyenda } from './mapa.js';
 import { mostrarPanel, panelActual, revisar, usarCorrida, cargarVariable, quitarResaltado, guardar } from './paneles.js';
 import { mostrarInspector, cerrarInspector } from './inspector.js';
@@ -188,7 +188,7 @@ function bienvenida() {
   b.innerHTML = `<div class="bienv"><div>
       <h1>Revisa, corre y compara modelos de EPANET sin adivinar qué pasó.</h1>
       <p class="lema">El mismo motor de cálculo del programa EPANET, con un mapa que se entiende, revisión antes de correr, escenarios sin copiar archivos y una explicación en cada paso. Todo corre en tu PC.</p>
-      <div class="acc"><button class="btn prim" id="w-abrir">Abrir un modelo .inp</button><button class="btn" id="w-nuevo">Empezar uno desde cero</button><button class="btn" id="w-esc">Abrir un escenario guardado</button></div>
+      <div class="acc"><button class="btn prim" id="w-abrir">Abrir un modelo .inp</button><button class="btn" id="w-nuevo">Empezar uno desde cero</button><button class="btn" id="w-esc">Abrir un escenario guardado</button><button class="btn" id="w-rpt" title="Avisos, paso a paso, resultados y el texto completo, en otra ventana">Leer un reporte .rpt</button></div>
       ${S.docs.length ? '<div class="rec-t">Abiertos ahora</div><div id="w-abiertos"></div>' : ''}
       <div class="rec-t">Abiertos hace poco</div><div id="w-rec"></div>
     </div>
@@ -204,6 +204,7 @@ function bienvenida() {
   $('#w-abrir').onclick = abrirDialogo;
   $('#w-nuevo').onclick = nuevoModelo;
   $('#w-esc').onclick = async () => { const r = await explorar({ titulo: 'Abrir un escenario guardado', filtro: ['.json'] }); if (r) abrir(r); };
+  $('#w-rpt').onclick = () => elegirReporte();
   const abiertos = $('#w-abiertos');
   S.docs.forEach((d) => {
     const x = h(`<button class="reciente abierto"><span class="ic"></span><b>${esc(d.nombre)}</b><span class="r">${esc(d.cambios ? nombreEscenario(d) : d.ruta)}${d.sin_guardar ? ' · cambios sin guardar' : ''}</span></button>`);
@@ -242,6 +243,17 @@ bus.on('ir', ({ clase, id }) => {
   seleccionar(clase, i, true);
 });
 bus.on('seleccion-cambio', () => { mapa.pedir(); if (S.sel) mostrarInspector(); });
+// el lector de reportes (otra ventana) pide ver un elemento en el mapa: si es de otro modelo abierto, se pasa a esa pestaña
+try {
+  const canal = new BroadcastChannel('cauce');
+  canal.onmessage = async ({ data: m }) => {
+    if (m?.tipo !== 'ir' || !m.id) return;
+    if (m.doc && m.doc !== S.doc && S.docs.some((d) => d.id === m.doc)) { pintarPestanas(); await activar(m.doc); }
+    if (!S.M) { aviso('Abre el modelo para ver ese elemento en el mapa.', 'error'); return; }
+    if (!$('#bienvenida').hidden) { pintarPestanas(); await activar(S.doc); }
+    bus.emit('ir', { clase: m.clase || 'tramo', id: m.id });
+  };
+} catch (e) { /* navegador sin BroadcastChannel */ }
 
 function buscador() {
   const inp = $('#buscar'), sug = $('#sugerencias');

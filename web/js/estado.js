@@ -121,6 +121,30 @@ export function nombreCalidad(q = S.resumen?.calidad) {
 }
 export const nombreEscenario = (I) => (I.escenario === 'Sin cambios' && I.cambios ? 'sin nombre' : I.escenario);
 
+// ---------------------------------------------------------------- otra ventana de Cauce
+// En la ventana propia (pywebview) la abre el lanzador con la identidad de Cauce; en el navegador, una ventana emergente.
+export function nuevaVentana(ruta, titulo = 'Cauce') {
+  try {
+    if (window.pywebview?.api?.ventana) { window.pywebview.api.ventana(ruta, titulo); return; }
+  } catch (e) { /* sigue con la del navegador */ }
+  const w = window.open(ruta, '_blank', 'popup=yes,width=1320,height=880');
+  if (!w) aviso('El navegador bloqueó la ventana nueva: permite las ventanas emergentes de Cauce.', 'error');
+}
+
+// el lector de reportes de EPANET, en otra ventana: de una corrida en memoria o de un .rpt del disco
+export function abrirReporte({ corrida = '', ruta = '', doc = '', nombre = '' } = {}) {
+  const q = new URLSearchParams();
+  if (corrida) q.set('corrida', corrida);
+  if (ruta) q.set('ruta', ruta);
+  if (doc) q.set('doc', doc);
+  if (nombre) q.set('nombre', nombre);
+  nuevaVentana(`rpt.html?${q}`, `${nombre || (ruta ? ruta.split('\\').pop() : 'Reporte')} · Reporte de EPANET`);
+}
+export async function elegirReporte(doc = '') {
+  const r = await explorar({ titulo: 'Leer un reporte de EPANET (.rpt)', filtro: ['.rpt', '.txt', '.log'] });
+  if (r) abrirReporte({ ruta: r, doc });
+}
+
 // ---------------------------------------------------------------- ventanas
 let salidaModal = null, abierta = null;
 export function modal({ titulo, cuerpo, botones = [], chico = false, alCerrar }) {

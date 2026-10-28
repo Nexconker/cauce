@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reporte de EPANET · Cauce</title>
+<link rel="preload" href="fuentes/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fuentes/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="icon" type="image/png" sizes="16x16" href="marca/nex-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="marca/nex-32.png">
+<link rel="stylesheet" href="estilo.css">
+<link rel="stylesheet" href="rpt.css">
+</head>
+<body class="rpt">
+<header id="rbarra">
+  <div class="marca"><img class="logo" src="marca/nex.svg" alt=""><b>Cauce</b><span class="de">Reporte de EPANET</span></div>
+  <div id="r-titulo"></div>
+  <div class="barra-der">
+    <label class="motor-sel" id="r-modelo-caja" hidden title="Con un modelo abierto en Cauce, cada elemento del reporte se puede ver en su mapa">Modelo
+      <select id="r-modelo"><option value="">ninguno</option></select></label>
+    <button class="btn" id="r-abrir" title="Abrir otro reporte .rpt de una carpeta">Abrir otro</button>
+    <button class="btn" id="r-pc" title="Elegir un archivo con el diálogo de Windows (también se puede soltar encima de la ventana)">Desde el PC</button>
+    <input type="file" id="r-local" accept=".rpt,.txt,.log" hidden>
+  </div>
+</header>
+<nav id="rtabs" role="tablist" aria-label="Partes del reporte" hidden></nav>
+<main id="rcuerpo" aria-live="polite"></main>
+<div id="r-soltar" hidden><div>Suelta el reporte .rpt para leerlo</div></div>
+<div id="r-tip" hidden></div>
+<div id="capa-modal" hidden></div>
+<div id="toasts" aria-live="assertive"></div>
+<script type="module" src="js/rpt.js"></script>
+</body>
+</html>

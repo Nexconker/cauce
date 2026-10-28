@@ -146,6 +146,7 @@ class Corrida:
         self.con_calidad = calidad
         self.nombre = nombre
         self.cancelada = False
+        self.reporte = ''
         self.fase = 'esperando'
         self.t_sim = 0
         self.duracion = 1
@@ -332,6 +333,7 @@ class Corrida:
         p.d.EN_close(p.ph)
         p.d.EN_deleteproject(p.ph)
         txt = open(rpt, encoding='latin-1', errors='replace').read() if os.path.exists(rpt) else ''
+        self.reporte = txt          # el reporte de EPANET entero, para leerlo en el lector de reportes
 
         T = len(self.horas)
         iters_s = sorted(iters)

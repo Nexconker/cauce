@@ -78,6 +78,23 @@ def ventana_propia(ventana, depurar=False):
             estado['salir'] = True
             threading.Thread(target=w.destroy, daemon=True).start()
 
+        def ventana(self, ruta, titulo='Cauce'):
+            """Otra ventana de Cauce, con su misma identidad e ícono: el lector de reportes de EPANET."""
+            v = webview.create_window(str(titulo)[:120] or 'Cauce', URL + str(ruta).lstrip('/'), js_api=api, width=1320, height=880,
+                                      min_size=(860, 560), background_color='#0f0b0b', text_select=True)
+            v.events.shown += al_mostrar
+            return True
+
+        def al_frente(self):
+            """Trae al frente la ventana principal (el lector de reportes la pide al mostrar un elemento en el mapa)."""
+            try:
+                w.restore()
+                w.on_top = True
+                w.on_top = False
+            except Exception:
+                pass
+            return True
+
     api = Api()
     w = webview.create_window(ventana.TITULO, URL, js_api=api, width=1440, height=900, min_size=(1000, 640),
                               background_color='#0f0b0b', text_select=True)

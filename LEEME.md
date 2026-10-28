@@ -71,6 +71,14 @@ Excel).
   orden y exportación a CSV para Excel, y el informe de energía. El panel abre ancho y **Ampliar** lo lleva a todo
   el ancho (el mapa vuelve al reducir); las tablas tienen su propio scroll con el encabezado y la primera columna
   fijos y muestran hasta 1.500 filas (el CSV las lleva todas).
+- **Lector de reportes .rpt** (en otra ventana): «Leer el reporte de EPANET» en Correr abre el de la corrida que se
+  está viendo; «Leer un .rpt» en Informes o en el inicio abre cualquier reporte del disco (también el de EPANET de
+  escritorio), y se le puede soltar un archivo encima. Trae un resumen con los avisos por hora y por tipo, los avisos
+  agrupados por elemento (veces, horas, primera y última, copiar para Excel), el paso a paso con los avisos y cambios
+  de estado de cada paso, las tablas de resultados si el reporte las tiene (cada nudo o tramo hora a hora y los más
+  bajos o altos de cada variable) y el texto completo con buscador y saltos a cada sección. Con un modelo abierto
+  relacionado, cada elemento sale con su nombre y el botón **Mapa** lo muestra en la ventana principal. Lee reportes
+  de decenas de MB sin congelar la ventana.
 - **Edición en grupo**: desde una tabla filtrada o encerrando un área del mapa (herramienta Área): poner,
   multiplicar o sumar diámetro, rugosidad, pérdida menor, longitud, estado, cota, demanda, patrón o etiqueta.
 - **Mapa de fondo**: un plano o una foto aérea debajo de la red, ubicada con las coordenadas del modelo (en el

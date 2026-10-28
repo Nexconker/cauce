@@ -218,6 +218,8 @@ body.panel-ancho.panel-amplio:not(.panel-plegado) #cuerpo { grid-template-column
 body.panel-amplio #mapa-caja { visibility: hidden; }
 .i-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .i-cab h1 { margin-bottom: 4px; }
+.i-cab .i-botones { display: flex; gap: 6px; flex: none; }
+.acciones-fila { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 2px; }
 #i-amplio[aria-pressed="true"] { color: var(--acento-texto); background: var(--acento-suave); }
 /* Revisión compacta: una fila por hallazgo */
 .hallazgo { border: 1px solid var(--linea); border-radius: var(--r-2); background: var(--panel-2); margin-bottom: 6px; }
