@@ -1,18 +1,18 @@
-/* Lector de reportes de EPANET: dentro de una ventana grande de Cauce (.modal.grande) o suelto en rpt.html, con la
-   misma identidad que la ventana principal (estilo.css). */
+/* Lector de reportes de EPANET: en una pestaña de Cauce (#lectores) o suelto en rpt.html, con la misma identidad que
+   la ventana principal (estilo.css). */
 
 /* ---------------------------------------------------------------- dónde vive */
-.modal.grande { width: min(1480px, 96vw); height: min(92vh, 1100px); max-height: 92vh; }
-.modal.grande .cont { padding: 0; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+/* cada reporte va en su pestaña de la barra de arriba y tapa el área de trabajo: mapa, panel y barra de tiempo */
+#lectores { position: absolute; top: 48px; left: 0; right: 0; bottom: 0; z-index: calc(var(--z-tiempo) + 5); background: var(--bg);
+  display: flex; flex-direction: column; }
+#lectores[hidden], #lectores > .lector[hidden] { display: none; }
+.pestana.rpt .ic { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round;
+  stroke-linejoin: round; color: var(--apagado); }
+.pestana.rpt.activa .ic { color: var(--acento-texto); }
 body.rpt { display: grid; grid-template-rows: 48px minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); height: 100vh; }
 #rbarra { display: flex; align-items: center; padding: 0 12px 0 14px; background: var(--panel); border-bottom: 1px solid var(--linea); }
 #rbarra .marca { cursor: default; }
 #lector { min-height: 0; }
-
-/* botón para volver al reporte después de ver un elemento en el mapa */
-.volver-reporte { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: var(--z-control); display: flex; gap: 6px;
-  padding: 6px; background: var(--panel); border: 1px solid var(--linea-2); border-radius: var(--r-2); box-shadow: var(--sombra-baja); }
-body:not(.sin-modelo) .volver-reporte { bottom: 78px; }
 
 /* ---------------------------------------------------------------- el lector */
 .lector { position: relative; display: flex; flex-direction: column; flex: 1; height: 100%; min-height: 0; }

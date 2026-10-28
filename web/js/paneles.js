@@ -411,8 +411,10 @@ function pintarResumen(r) {
     <div class="cifra ${dif === null || dif === undefined ? '' : clase(Math.abs(dif), meta, meta * 2.5)}"><div class="v">${dif === null || dif === undefined ? '—' : `${dif > 0 ? '+' : ''}${n(dif, 2)}`}<small>%</small></div><div class="t">producción vs consumo (meta ±${n(meta, 1)} %)</div></div>
   </div>`));
   if (S.corrida) {
-    const b = h('<div class="acciones-fila"><button class="btn chico" data-t="El reporte de EPANET de esta corrida en otra ventana: avisos por elemento, paso a paso y el texto completo con buscador. Cada elemento se puede ver en el mapa.">Leer el reporte de EPANET</button></div>');
-    $('button', b).onclick = () => abrirReporte({ corrida: S.corrida, doc: S.doc, nombre: `${S.info?.nombre || 'Modelo'} · corrida` });
+    const b = h(`<div class="acciones-fila"><button class="btn chico" data-a="leer" data-t="El reporte de EPANET de esta corrida en su propia pestaña: avisos por elemento, paso a paso y el texto completo con buscador. Cada elemento se puede ver en el mapa.">Leer el reporte de EPANET</button>
+      <button class="btn chico" data-a="generar" data-t="Un .rpt de esta corrida, con el mismo motor, guardado donde quieras y con lo que elijas: estados de cada paso, resultados de nudos y tramos, energía.">Generar un .rpt…</button></div>`);
+    $('[data-a=leer]', b).onclick = () => abrirReporte({ corrida: S.corrida, doc: S.doc, nombre: `${S.info?.nombre || 'Modelo'} · corrida` });
+    $('[data-a=generar]', b).onclick = () => mostrarPanel('reportes');
     cont.append(b);
   }
   if (bal) {

@@ -847,7 +847,7 @@ function bucle(ahora) {
 }
 function cuadro(ahora) {
   const dt = Math.min(0.1, Math.max(0, (ahora - V.ultimo) / 1000)); V.ultimo = ahora;
-  if (!abierta) return;
+  if (!abierta || document.body.classList.contains('con-reporte')) return;      // tapada por la pestaña de un reporte: no se dibuja
   if (!S.M) { cerrar3d(); return; }
   if (S.M !== V.M) { construir(); pintarControles(); escribirLeyenda(); }
   // la hora de la barra de tiempo, que ya avanza continua (S.t): los valores se mezclan entre las dos horas vecinas

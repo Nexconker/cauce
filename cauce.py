@@ -546,8 +546,10 @@ def api_get(ruta, q):
             raise ErrorApi(404, 'Esa corrida ya no está en memoria.')
         c = CORRIDAS[p[2]]
         if len(p) == 3 or p[3] == 'resumen':
+            d = DOCS.get(c['doc'])
             return {'id': p[2], 'nombre': c['nombre'], 'cuando': c['cuando'], 'resumen': c['corrida'].resumen,
-                    'fase': c['corrida'].fase, 'error': c['corrida'].error}
+                    'fase': c['corrida'].fase, 'error': c['corrida'].error, 'motor': c['corrida'].version,
+                    'al_dia': bool(d) and c.get('version_doc') == d.version}
         if p[3] == 'serie':
             run = c['corrida']
             ids = run.ids_n if q.get('clase') == 'nudo' else run.ids_l
@@ -688,13 +690,17 @@ def api_post(ruta, cuerpo):
             d.hallazgos = diagnostico.revisar(d.modelo, float(tol) if tol is not None else None, CONV)
         return {'hallazgos': d.hallazgos}
     if accion == 'reporte':
-        # generador de reportes: corre el modelo (con su escenario) y deja el .rpt con lo pedido en [REPORT]
+        # generador de reportes: repite una corrida hecha en Correr (el mismo .inp y el mismo motor) y deja el .rpt
+        # con lo pedido en [REPORT]
+        c = CORRIDAS.get(str(cuerpo.get('corrida', '')))
+        if not c or c['doc'] != d.id:
+            raise ErrorApi(400, 'Corre el modelo en Correr primero: el reporte sale de esa corrida.')
         ruta = str(cuerpo.get('ruta', '')).strip()
         if not os.path.isabs(ruta) or not ruta.lower().endswith(('.rpt', '.txt')):
             raise ErrorApi(400, 'Escribe la ruta completa del reporte, terminada en .rpt.')
         if os.path.exists(ruta) and not cuerpo.get('sobrescribir'):
             raise ErrorApi(409, f'Ya existe {os.path.basename(ruta)} en esa carpeta. Si sigues, se reemplaza por el reporte nuevo.')
-        rep = motor.Reporte(d.texto, ruta, cuerpo.get('motor', '2.2'), cuerpo.get('opciones') or {})
+        rep = motor.Reporte(c['corrida'].texto, ruta, c['corrida'].version, cuerpo.get('opciones') or {})
         return {'trabajo': lanzar('reporte', d, rep.correr, rep)}
     if accion == 'correr':
         return {'trabajo': iniciar_corrida(d, cuerpo.get('motor', '2.3'), bool(cuerpo.get('estados', True)),

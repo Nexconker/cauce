@@ -133,12 +133,12 @@ export function nuevaVentana(ruta, titulo = 'Cauce') {
 
 // ---------------------------------------------------------------- ventanas
 let salidaModal = null, abierta = null;
-export function modal({ titulo, cuerpo, botones = [], chico = false, grande = false, alCerrar }) {
+export function modal({ titulo, cuerpo, botones = [], chico = false, alCerrar }) {
   const capa = $('#capa-modal');
   if (abierta) abierta();         // una ventana nueva reemplaza a la que estuviera abierta
   clearTimeout(salidaModal); capa.classList.remove('saliendo');
   capa.innerHTML = '';
-  const m = h(`<div class="modal ${chico ? 'chico' : ''} ${grande ? 'grande' : ''}" role="dialog" aria-modal="true">
+  const m = h(`<div class="modal ${chico ? 'chico' : ''}" role="dialog" aria-modal="true">
     <header><h2>${esc(titulo)}</h2><button class="x" aria-label="Cerrar">×</button></header>
     <div class="cont"></div><footer></footer></div>`);
   const cont = $('.cont', m);

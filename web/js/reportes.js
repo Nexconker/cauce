@@ -1,7 +1,7 @@
-// Panel Reportes (barra de la izquierda): genera el reporte de EPANET (.rpt) del modelo abierto, con su escenario y lo
-// que se pida en [REPORT] (estados de cada paso, resumen, energía, nudos, tramos y variables), y lo abre en el lector.
-// También abre cualquier .rpt del disco o el de la corrida que se está viendo.
-import { S, get, post, esc, n, h, aviso, fallo, explorar, modal, $, $$ } from './estado.js';
+// Panel Reportes (barra de la izquierda): genera el reporte de EPANET (.rpt) de la corrida hecha en Correr (el mismo
+// .inp y el mismo motor) con lo que se pida en [REPORT] (estados de cada paso, resumen, energía, nudos, tramos y
+// variables), y lo abre en su pestaña. También abre cualquier .rpt del disco o el de la corrida que se está viendo.
+import { S, bus, get, post, esc, n, h, aviso, fallo, explorar, modal, $, $$ } from './estado.js';
 import { abrirReporte, elegirReporte } from './reporte.js';
 
 const P = () => document.getElementById('panel');
@@ -29,21 +29,34 @@ function confirmar(titulo, texto, boton) {
 
 export async function pReportes() {
   const o = leerOpciones();
-  P().innerHTML = `<h1>Reportes de EPANET</h1><p class="sub">Genera el reporte .rpt del modelo con lo que necesites y léelo en Cauce, o abre uno que ya tengas.</p>`;
-  const leer = h(`<div class="tarjeta"><h3>Leer un reporte</h3><p>Avisos por elemento y por hora, paso a paso, tablas de resultados y el texto completo con buscador, en una ventana de Cauce.</p>
+  P().innerHTML = `<h1>Reportes de EPANET</h1><p class="sub">Genera el reporte .rpt de la corrida con lo que necesites y léelo en Cauce, o abre uno que ya tengas.</p>`;
+  const cab = P().firstElementChild;
+  const leer = h(`<div class="tarjeta"><h3>Leer un reporte</h3><p>Avisos por elemento y por hora, paso a paso, tablas de resultados y el texto completo con buscador, en su propia pestaña.</p>
     <div class="acciones"><button class="btn" data-a="disco">Abrir un .rpt…</button>${S.corrida ? '<button class="btn" data-a="corrida">El de la corrida que estás viendo</button>' : ''}</div></div>`);
   $('[data-a=disco]', leer).onclick = () => elegirReporte(S.doc || '');
   if (S.corrida) $('[data-a=corrida]', leer).onclick = () => abrirReporte({ corrida: S.corrida, doc: S.doc, nombre: `${S.info?.nombre || 'Modelo'} · corrida` });
   if (!S.doc || !S.info) {
-    P().append(h('<div class="tarjeta info"><h3>Abre un modelo para generar su reporte</h3><p>El reporte sale de correr el modelo abierto, con su escenario.</p></div>'));
+    P().append(h('<div class="tarjeta info"><h3>Abre un modelo para generar su reporte</h3><p>El reporte sale de la corrida que hagas del modelo en Correr.</p></div>'));
     P().append(leer);
+    pintarRecientes();
+    return;
+  }
+  // el reporte sale de una corrida hecha en Correr: EPANET la repite con el mismo .inp y el mismo motor
+  let C = null;
+  if (S.corrida) { try { C = await get(`/api/corrida/${S.corrida}`); } catch (e) { C = null; } }
+  if (!cab.isConnected) return;       // se cambió de panel mientras llegaba
+  if (!C) {
+    const t = h(`<div class="tarjeta info"><h3>Corre el modelo primero</h3><p>El reporte sale de la corrida que hagas en Correr, con su motor y su escenario. Cuando termine, vuelve aquí para generarlo.</p>
+      <div class="acciones"><button class="btn prim">Ir a Correr</button></div></div>`);
+    $('button', t).onclick = () => bus.emit('panel', 'correr');
+    P().append(t, leer);
     pintarRecientes();
     return;
   }
   const chk = (lista, grupo) => lista.map(([k, t]) => `<label class="chk"><input type="checkbox" data-var="${k}" data-g="${grupo}" ${o.variables.includes(k) ? 'checked' : ''}> ${esc(t)}</label>`).join('');
   const f = h(`<form class="tarjeta" autocomplete="off"><h3>Generar el reporte (.rpt)</h3>
-    <p>De <b>${esc(S.info.nombre)}</b>${S.info.escenario && S.info.escenario !== 'Sin cambios' ? ` con el escenario «${esc(S.info.escenario)}»` : ''}, corrido entero con el motor de EPANET.</p>
-    <div class="campo">Motor<div class="seg" id="g-motor"><button type="button" data-v="2.2">2.2 · como EPANET de escritorio</button><button type="button" data-v="2.3">2.3 · rápido</button></div></div>
+    <p>De la corrida de las <b>${esc(String(C.cuando).slice(0, 5))}</b> con el motor <b>${esc(C.motor)}</b>${S.info.escenario && S.info.escenario !== 'Sin cambios' ? ` y el escenario «${esc(S.info.escenario)}»` : ''}. EPANET la repite igual para escribir el reporte, así que tarda lo mismo que ella.</p>
+    ${C.al_dia ? '' : '<p class="sub">El modelo cambió después de esa corrida: el reporte sale de lo que se corrió. Para tener lo de ahora, córrelo otra vez en Correr.</p>'}
     <div class="campo">Estado de cada paso (válvulas, bombas y tanques que cambian)<div class="seg" id="g-estados"><button type="button" data-v="no">No</button><button type="button" data-v="si">Sí</button><button type="button" data-v="completo">Completo, con las iteraciones</button></div></div>
     <label class="chk"><input type="checkbox" id="g-resumen" ${o.resumen ? 'checked' : ''}> Resumen de los datos del modelo</label>
     <label class="chk" style="margin-bottom:10px"><input type="checkbox" id="g-energia" ${o.energia ? 'checked' : ''}> Consumo de energía de las bombas</label>
@@ -58,9 +71,8 @@ export async function pReportes() {
     <div class="acciones"><button class="btn prim" id="g-generar">Generar el reporte</button></div><div class="g-prog" id="g-prog"></div></form>`);
   P().append(f, leer);
   pintarRecientes();
-  let motor = S.motor || '2.2', estados = o.estados;
+  let estados = o.estados;
   const seg = (sel, v, fn) => $$(`${sel} button`, f).forEach((b) => { b.classList.toggle('on', b.dataset.v === v); b.onclick = () => { fn(b.dataset.v); seg(sel, b.dataset.v, fn); }; });
-  seg('#g-motor', motor, (v) => { motor = v; });
   seg('#g-estados', estados, (v) => { estados = v; });
   const lista = (clave) => {
     const sel = $(`#g-${clave}`, f), ids = $(`#g-${clave}-ids`, f);
@@ -90,8 +102,8 @@ export async function pReportes() {
     if (!/\.(rpt|txt)$/i.test(destino)) destino += '.rpt';
     const op = opciones();
     guardarOpciones(op);
-    const doc = S.doc, nombre = S.info.nombre;
-    const enviar = (sobrescribir) => post(`/api/doc/${doc}/reporte`, { ruta: destino, motor, opciones: op, sobrescribir });
+    const doc = S.doc, nombre = S.info.nombre, corrida = C.id;
+    const enviar = (sobrescribir) => post(`/api/doc/${doc}/reporte`, { ruta: destino, corrida, opciones: op, sobrescribir });
     let r;
     try { r = await enviar(false); } catch (ex) {
       if (ex.codigo !== 409) { fallo(ex); return; }

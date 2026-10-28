@@ -1,55 +1,80 @@
-// El lector de reportes .rpt dentro de Cauce: una ventana grande de la propia app, como las de abrir y guardar.
-// «Mapa» la esconde, muestra el elemento en el mapa y deja un botón para volver al reporte tal como estaba.
-import { S, h, $, modal, explorar, nuevaVentana } from './estado.js';
+// Los reportes .rpt dentro de Cauce: cada uno se abre en su pestaña de la barra de arriba, junto a las de los modelos,
+// y ocupa toda el área de trabajo. «Mapa» pasa a la pestaña del modelo con el elemento elegido; para volver al reporte
+// basta su pestaña.
+import { S, bus, h, esc, explorar, nuevaVentana } from './estado.js';
 import { crearLector } from './lector.js';
 
-let vivo = null;          // { raiz, lector, cerrarPorMapa }
-const canal = (() => { try { return new BroadcastChannel('cauce'); } catch (e) { return null; } })();
+const abiertos = [];      // { id, clave, nombre, titulo, raiz, lector }
+let activo = null;        // id del reporte que se ve; null cuando se ve el modelo
+let cuenta = 0, abiertoEn = 0;
 
-function volver(mostrar) {
-  let c = document.getElementById('volver-reporte');
-  if (!mostrar) { c?.remove(); return; }
-  if (c) return;
-  c = h('<div id="volver-reporte" class="volver-reporte" role="group" aria-label="Reporte de EPANET"><button class="btn prim chico" data-a="volver">Volver al reporte</button><button class="btn chico" data-a="cerrar" title="Cerrar el reporte" aria-label="Cerrar el reporte">×</button></div>');
-  $('[data-a=volver]', c).onclick = () => ventana();
-  $('[data-a=cerrar]', c).onclick = () => { vivo = null; volver(false); };
-  $('#mapa-caja').append(c);
+function caja() {
+  let c = document.getElementById('lectores');
+  if (!c) {
+    c = h('<section id="lectores" hidden aria-label="Reportes de EPANET"></section>');
+    // el explorador abre con un clic: el segundo de un doble clic cae en el reporte y no debe seleccionar su texto
+    c.addEventListener('mousedown', (e) => { if (e.detail > 1 && performance.now() - abiertoEn < 700) e.preventDefault(); });
+    document.body.append(c);
+  }
+  return c;
 }
 
-function ventana() {
-  if (!vivo) return;
-  let porMapa = false;
-  const dlg = modal({
-    titulo: 'Reporte de EPANET', cuerpo: vivo.raiz, grande: true,
-    alCerrar: () => { if (!porMapa) { vivo = null; volver(false); } },
+export const reporteActivo = () => activo !== null;
+
+// muestra un reporte, o el modelo con null
+function mostrar(id) {
+  activo = id;
+  abiertos.forEach((r) => { r.raiz.hidden = r.id !== id; });
+  caja().hidden = id === null;
+  document.body.classList.toggle('con-reporte', id !== null);
+  bus.emit('pestanas');
+  const r = abiertos.find((x) => x.id === id);
+  if (r) requestAnimationFrame(() => r.lector.repintar());       // las gráficas se dibujan con el tamaño que tienen al verse
+}
+export function mostrarModelo() { if (activo !== null) mostrar(null); }
+
+function cerrar(id) {
+  const k = abiertos.findIndex((x) => x.id === id);
+  if (k < 0) return;
+  const [r] = abiertos.splice(k, 1);
+  r.lector.destruir();
+  r.raiz.remove();
+  if (activo === id) mostrar(abiertos.length ? abiertos[Math.min(k, abiertos.length - 1)].id : null); else bus.emit('pestanas');
+}
+
+// las pestañas de los reportes van detrás de las de los modelos: app.js las pide al pintar la barra
+export function pestanasReportes(c) {
+  abiertos.forEach((r) => {
+    const b = h(`<button class="pestana rpt ${r.id === activo ? 'activa' : ''}" role="tab" title="${esc(r.titulo)}">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z M14 3v4h4 M10 12h5 M10 16h5"/></svg>
+      <span class="nom">${esc(r.nombre)}</span><span class="x" title="Cerrar el reporte">×</span></button>`);
+    b.onclick = (e) => { if (e.target.classList.contains('x')) { e.stopPropagation(); cerrar(r.id); } else mostrar(r.id); };
+    c.append(b);
   });
-  vivo.cerrarPorMapa = () => { porMapa = true; dlg.cerrar(); };
-  volver(false);
-  requestAnimationFrame(() => vivo?.lector.repintar());       // las gráficas se redibujan con el tamaño de la ventana
-}
-
-// el elemento se pide por el canal «cauce», el mismo que usa la ventana aparte: app.js cambia de modelo si hace falta
-function verEnMapa(doc, clase, id) {
-  vivo?.cerrarPorMapa?.();
-  volver(true);
-  canal?.postMessage({ tipo: 'ir', doc, clase, id });
 }
 
 export function abrirReporte({ corrida = '', ruta = '', doc = '', nombre = '' } = {}) {
-  const raiz = document.createElement('div');
-  const lector = crearLector(raiz, {
-    doc: doc || S.doc || '', enApp: true, alVerEnMapa: verEnMapa,
-    abrirOtro: (d) => elegirReporte(d),
-    otraVentana: (consulta) => nuevaVentana(`rpt.html?${consulta}`, 'Reporte de EPANET'),
-  });
-  vivo = { raiz, lector };
-  ventana();
-  lector.cargar({ corrida, ruta, nombre });
+  const clave = corrida ? `corrida:${corrida}` : ruta.toLowerCase();
+  let r = clave ? abiertos.find((x) => x.clave === clave) : null;
+  if (!r) {
+    const raiz = document.createElement('div');
+    r = { id: ++cuenta, clave, nombre: nombre || ruta.split('\\').pop() || 'Reporte', titulo: ruta || nombre, raiz };
+    r.lector = crearLector(raiz, {
+      doc: doc || S.doc || '', enApp: true,
+      alVerEnMapa: (d, clase, id) => bus.emit('ir-modelo', { doc: d, clase, id }),
+      alNombre: (t) => { if (t && r.nombre !== t) { r.nombre = t; bus.emit('pestanas'); } },
+      abrirOtro: (d) => elegirReporte(d),
+      otraVentana: (consulta) => nuevaVentana(`rpt.html?${consulta}`, 'Reporte de EPANET'),
+    });
+    abiertos.push(r);
+    caja().append(raiz);
+  }
+  abiertoEn = performance.now();
+  mostrar(r.id);
+  r.lector.cargar({ corrida, ruta, nombre });     // si ya estaba abierto se vuelve a leer: puede ser un .rpt recién generado
 }
 
 export async function elegirReporte(doc = '') {
-  const previo = vivo;      // la ventana de abrir reemplaza a la del reporte: si se cancela, el reporte vuelve como estaba
   const r = await explorar({ titulo: 'Leer un reporte de EPANET (.rpt)', filtro: ['.rpt', '.txt', '.log'] });
   if (r) abrirReporte({ ruta: r, doc: doc || S.doc || '' });
-  else if (previo && !vivo) { vivo = previo; ventana(); }
 }

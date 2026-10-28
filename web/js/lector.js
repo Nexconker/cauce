@@ -1,5 +1,5 @@
 // Lector de reportes de EPANET (.rpt) como componente: se monta en una caja y trae su propia cabecera, pestañas y
-// contenido. En Cauce va dentro de una ventana grande de la app (reporte.js), y la página rpt.html lo usa suelto.
+// contenido. En Cauce cada reporte va en su pestaña de la barra de arriba (reporte.js), y la página rpt.html lo usa suelto.
 // Resumen, avisos por elemento, paso a paso, tablas de resultados y el texto completo con buscador. Con un modelo
 // relacionado, cada elemento sale con su nombre y «Mapa» lo muestra en el mapa.
 import { get, esc, h, $, $$, n, aviso, fallo, explorar, esqueleto, S } from './estado.js';
@@ -20,9 +20,13 @@ function tipEl() {
   return t;
 }
 
-// opciones: doc (modelo relacionado), enApp, alVerEnMapa(doc, clase, id), alTitulo(texto), abrirOtro(doc), otraVentana(consulta)
+// opciones: doc (modelo relacionado), enApp, alVerEnMapa(doc, clase, id), alTitulo(texto), alNombre(nombre del reporte),
+// abrirOtro(doc), otraVentana(consulta)
 export function crearLector(raiz, opciones = {}) {
-  const O = { doc: '', enApp: false, alVerEnMapa: null, alTitulo: null, abrirOtro: null, otraVentana: null, ...opciones };
+  const O = { doc: '', enApp: false, alVerEnMapa: null, alTitulo: null, alNombre: null, abrirOtro: null, otraVentana: null, ...opciones };
+  let muerto = false;
+  // con varios reportes abiertos en pestañas, solo el que se ve atiende el teclado y los cambios de tamaño
+  const visible = () => raiz.isConnected && raiz.getClientRects().length > 0;
   const st = {
     texto: '', lineas: [], R: null, nombre: '', fuente: '', doc: O.doc || '', mod: null, pestana: 'resumen', origen: {},
     tipo: '', busca: '', orden: { col: 'n', dir: -1 }, abierto: '', todos: false,
@@ -56,7 +60,7 @@ export function crearLector(raiz, opciones = {}) {
     q('.l-local').onchange = (e) => { const f = e.target.files?.[0]; if (f) leerArchivo(f); e.target.value = ''; };
     soltar();
     document.addEventListener('keydown', teclas);
-    window.addEventListener('resize', () => { if (!raiz.isConnected) return; if (st.pestana === 'texto') pintarLineas(); else if (st.R && ['resumen', 'resultados'].includes(st.pestana)) pintar(); });
+    window.addEventListener('resize', tamano);
     C().addEventListener('click', clics);
     modelos();
   }
@@ -107,6 +111,7 @@ export function crearLector(raiz, opciones = {}) {
     cargando(nombre, `Leyendo ${n(texto.length / 1048576, 1)} MB y ${n(st.lineas.length, 0)} líneas…`);
     const t0 = performance.now();
     st.R = await analizar(texto);
+    if (muerto) return;       // se cerró su pestaña mientras se leía
     st.ms = performance.now() - t0;
     colorTipo = {};
     Object.entries(st.R.porTipo).sort((a, b) => b[1] - a[1]).forEach(([k], j) => { colorTipo[k] = j < PALETA.length ? PALETA[j] : GRIS; });
@@ -129,6 +134,7 @@ export function crearLector(raiz, opciones = {}) {
   }
 
   function cargando(nombre, msg) {
+    O.alNombre?.(nombre);
     q('.l-tabs').hidden = true;
     q('.l-titulo').innerHTML = `<b>${esc(nombre)}</b><span>${esc(msg)}</span>`;
     C().classList.remove('lleno');
@@ -768,8 +774,12 @@ export function crearLector(raiz, opciones = {}) {
     if (st.pestana !== 'texto') { st.pestana = 'texto'; pintar(); } else centrar(i);
   }
 
+  function tamano() {
+    if (!visible()) return;
+    if (st.pestana === 'texto') pintarLineas(); else if (st.R && ['resumen', 'resultados'].includes(st.pestana)) pintar();
+  }
   function teclas(e) {
-    if (!raiz.isConnected || !st.R) return;
+    if (!visible() || !st.R) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
       e.preventDefault();
       if (st.pestana !== 'texto') { st.pestana = 'texto'; pintar(); }
@@ -777,6 +787,14 @@ export function crearLector(raiz, opciones = {}) {
     }
   }
 
+  // al cerrar su pestaña: suelta los oyentes globales y el texto, que en un reporte grande son decenas de MB
+  function destruir() {
+    muerto = true;
+    document.removeEventListener('keydown', teclas);
+    window.removeEventListener('resize', tamano);
+    Object.assign(st, { texto: '', lineas: [], R: null, porT: null, aciertos: [] });
+  }
+
   montar();
-  return { cargar, repintar: () => { if (st.R) pintar(); }, get nombre() { return st.nombre; } };
+  return { cargar, destruir, repintar: () => { if (st.R) pintar(); }, get nombre() { return st.nombre; } };
 }

@@ -1,7 +1,7 @@
-// Arranque de Cauce: pestañas de modelos, bienvenida, buscador, barra de tiempo y herramientas de edición.
+// Arranque de Cauce: pestañas de modelos y reportes, bienvenida, buscador, barra de tiempo y herramientas de edición.
 import { S, bus, get, post, esc, n, h, hora, aviso, fallo, modal, formulario, explorar, $, $$, nombreNudo, nombreTramo, claseTexto, U, nombreEscenario, nombreCalidad, longitudAuto } from './estado.js';
 import { mapa, leyenda } from './mapa.js';
-import { elegirReporte } from './reporte.js';
+import { elegirReporte, pestanasReportes, reporteActivo, mostrarModelo } from './reporte.js';
 import { mostrarPanel, panelActual, revisar, usarCorrida, cargarVariable, quitarResaltado, guardar } from './paneles.js';
 import { mostrarInspector, cerrarInspector } from './inspector.js';
 import { edicionGrupo } from './informes.js';
@@ -33,12 +33,18 @@ async function refrescarDocs() {
 function pintarPestanas() {
   const c = $('#pestanas'); c.innerHTML = '';
   S.docs.forEach((d) => {
-    const b = h(`<button class="pestana ${d.id === S.doc ? 'activa' : ''}" role="tab" title="${esc(d.ruta)}"><span class="nom">${esc(d.nombre)}</span>
+    const b = h(`<button class="pestana ${d.id === S.doc && !reporteActivo() ? 'activa' : ''}" role="tab" title="${esc(d.ruta)}"><span class="nom">${esc(d.nombre)}</span>
       ${d.cambios && !d.propio ? `<span class="esc">${esc(nombreEscenario(d))}</span>` : ''}<span class="x ${d.sin_guardar ? 'mod' : ''}" title="${d.sin_guardar ? 'Cambios sin guardar · Cerrar' : 'Cerrar'}">×</span></button>`);
-    b.onclick = (e) => { if (e.target.classList.contains('x')) { e.stopPropagation(); cerrarDoc(d.id); } else activar(d.id); };
+    b.onclick = (e) => {
+      if (e.target.classList.contains('x')) { e.stopPropagation(); cerrarDoc(d.id); return; }
+      // desde un reporte, volver al modelo que ya estaba abierto no lo recarga: solo se deja de tapar
+      if (d.id === S.doc && reporteActivo() && $('#bienvenida').hidden) mostrarModelo(); else activar(d.id);
+    };
     c.append(b);
   });
+  pestanasReportes(c);
 }
+bus.on('pestanas', () => pintarPestanas());
 async function abrir(ruta) {
   try {
     const info = await post('/api/abrir', { ruta });
@@ -60,6 +66,7 @@ async function cerrarDoc(id) {
   else if (!S.doc) { bienvenida(); mostrarPanel('modelo'); }
 }
 async function activar(id) {
+  mostrarModelo();
   const cambia = S.doc !== id;
   if (cambia && S.doc && S.M) vistas[S.doc] = { ...mapa.vista(), sel: S.sel && { clase: S.sel.clase, id: S.selId } };
   S.doc = id;
@@ -243,6 +250,7 @@ function bienvenida() {
 }
 // el logo de arriba a la izquierda: vuelve al inicio sin cerrar nada; una pestaña o «Abiertos ahora» regresa al modelo
 function irAlInicio() {
+  mostrarModelo();
   if (estaAbierta()) cerrar3d();
   if (S.editando) bus.emit('editar', false);
   bienvenida();
@@ -265,16 +273,19 @@ bus.on('ir', ({ clase, id }) => {
   seleccionar(clase, i, true);
 });
 bus.on('seleccion-cambio', () => { mapa.pedir(); if (S.sel) mostrarInspector(); });
-// el lector de reportes (otra ventana) pide ver un elemento en el mapa: si es de otro modelo abierto, se pasa a esa pestaña
+// un reporte (en su pestaña o en otra ventana) pide ver un elemento en el mapa: se pasa a la pestaña de su modelo
+async function irDesdeReporte(m) {
+  if (!m?.id) return;
+  mostrarModelo();
+  if (m.doc && m.doc !== S.doc && S.docs.some((d) => d.id === m.doc)) { pintarPestanas(); await activar(m.doc); }
+  if (!S.M) { aviso('Abre el modelo para ver ese elemento en el mapa.', 'error'); return; }
+  if (!$('#bienvenida').hidden) { pintarPestanas(); await activar(S.doc); }
+  bus.emit('ir', { clase: m.clase || 'tramo', id: m.id });
+}
+bus.on('ir-modelo', irDesdeReporte);
 try {
   const canal = new BroadcastChannel('cauce');
-  canal.onmessage = async ({ data: m }) => {
-    if (m?.tipo !== 'ir' || !m.id) return;
-    if (m.doc && m.doc !== S.doc && S.docs.some((d) => d.id === m.doc)) { pintarPestanas(); await activar(m.doc); }
-    if (!S.M) { aviso('Abre el modelo para ver ese elemento en el mapa.', 'error'); return; }
-    if (!$('#bienvenida').hidden) { pintarPestanas(); await activar(S.doc); }
-    bus.emit('ir', { clase: m.clase || 'tramo', id: m.id });
-  };
+  canal.onmessage = ({ data: m }) => { if (m?.tipo === 'ir') irDesdeReporte(m); };
 } catch (e) { /* navegador sin BroadcastChannel */ }
 
 function buscador() {
@@ -723,6 +734,7 @@ async function iniciar() {
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); if ($('#capa-modal').hidden) guardarRapido(); return; }
     if (e.target.matches('input, textarea, select')) return;
+    if (reporteActivo()) return;      // en la pestaña de un reporte, las teclas no tocan el mapa que queda detrás
     if (e.key === 'Escape') { bus.emit('herramienta', null); quitarResaltado(); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && S.doc) { e.preventDefault(); bus.emit('deshacer'); }
     if (e.key === '/' ) { e.preventDefault(); $('#buscar').focus(); }
