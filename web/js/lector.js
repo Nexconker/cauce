@@ -13,6 +13,7 @@ const PESTANAS = [['resumen', 'Resumen'], ['avisos', 'Avisos por elemento'], ['p
 const corto = (k) => TIPOS[k]?.corto || k;
 const largo = (k) => TIPOS[k]?.nombre || k;
 const canal = (() => { try { return new BroadcastChannel('cauce'); } catch (e) { return null; } })();
+let lectores = 0;
 // una sola ayuda flotante, colgada del body: dentro de una ventana con transform, position: fixed no se ubica bien
 function tipEl() {
   let t = document.getElementById('r-tip');
@@ -25,6 +26,7 @@ function tipEl() {
 export function crearLector(raiz, opciones = {}) {
   const O = { doc: '', enApp: false, alVerEnMapa: null, alTitulo: null, alNombre: null, abrirOtro: null, otraVentana: null, ...opciones };
   let muerto = false;
+  const uid = ++lectores;     // el atributo list de un input busca su datalist por id en todo el documento
   // con varios reportes abiertos en pestañas, solo el que se ve atiende el teclado y los cambios de tamaño
   const visible = () => raiz.isConnected && raiz.getClientRects().length > 0;
   const st = {
@@ -587,13 +589,13 @@ export function crearLector(raiz, opciones = {}) {
       <label class="motor-sel">Variable <select id="r-rvar">${vars.map((v) => `<option value="${v.i}" ${v.i === st.resVar ? 'selected' : ''}>${esc(v.nombre)}${v.unidad ? ` (${esc(v.unidad)})` : ''}</option>`).join('')}</select></label>
       <label class="motor-sel">Hora <select id="r-rhora"><option value="-1">todo el día</option>${T.horas.map((t, j) => `<option value="${j}" ${j === st.resHora ? 'selected' : ''}>${reloj(t, false)}</option>`).join('')}</select></label>
       <div class="seg" id="r-rsent"><button data-v="1" class="${st.resSentido > 0 ? 'on' : ''}">Más bajos</button><button data-v="-1" class="${st.resSentido < 0 ? 'on' : ''}">Más altos</button></div>
-      <input id="r-rid" list="r-rids" placeholder="Buscar un ${st.resClase === 'nudo' ? 'nudo' : 'tramo'} por ID" value="${esc(st.resId)}" spellcheck="false" autocomplete="off"><datalist id="r-rids"></datalist></div>`);
+      <input id="r-rid" list="r-rids-${uid}" placeholder="Buscar un ${st.resClase === 'nudo' ? 'nudo' : 'tramo'} por ID" value="${esc(st.resId)}" spellcheck="false" autocomplete="off"><datalist id="r-rids-${uid}"></datalist></div>`);
     c.append(barra);
     $$('#r-rclase button', barra).forEach((b) => { b.onclick = () => { st.resClase = b.dataset.v; st.resVar = -1; st.resId = ''; pintar(); }; });
     q('#r-rvar').onchange = (e) => { st.resVar = +e.target.value; pintar(); };
     q('#r-rhora').onchange = (e) => { st.resHora = +e.target.value; pintar(); };
     $$('#r-rsent button', barra).forEach((b) => { b.onclick = () => { st.resSentido = +b.dataset.v; pintar(); }; });
-    const dl = $('#r-rids', barra);
+    const dl = $('datalist', barra);
     dl.innerHTML = T.ids.slice(0, 20000).map((id) => `<option value="${esc(id)}">`).join('');
     q('#r-rid').onchange = (e) => { const id = e.target.value.trim(); if (T.ids.includes(id)) { st.resId = id; pintar(); } else if (id) aviso(`${id} no está en las tablas del reporte.`, 'error'); };
 
@@ -722,12 +724,12 @@ export function crearLector(raiz, opciones = {}) {
     const total = st.lineas.length;
     $('.r-alto', box).style.height = `${total * LH}px`;
     const ini = Math.max(0, Math.floor(box.scrollTop / LH) - 40), fin = Math.min(total, Math.ceil((box.scrollTop + box.clientHeight) / LH) + 40);
-    const q = st.txtBusca.toLowerCase(), actual = st.aciertos[st.acierto];
+    const busca = st.txtBusca.toLowerCase(), actual = st.aciertos[st.acierto];      // no se llama q: taparía a q()
     let html = '';
     for (let i = ini; i < fin; i++) {
       const l = st.lineas[i];
       const cls = `${claseLinea(l)}${i === st.marca ? ' actual' : ''}${i === actual ? ' acierto' : ''}`;
-      html += `<div class="ln ${cls}"><span class="no">${i + 1}</span><span class="tx">${q ? resaltar(l, q) : esc(l)}</span></div>`;
+      html += `<div class="ln ${cls}"><span class="no">${i + 1}</span><span class="tx">${busca ? resaltar(l, busca) : esc(l)}</span></div>`;
     }
     const v = $('.r-ventana', box);
     v.style.transform = `translateY(${ini * LH}px)`;
@@ -742,11 +744,11 @@ export function crearLector(raiz, opciones = {}) {
     pintarLineas();
   }
 
-  function buscarTexto(q) {
-    st.txtBusca = q;
+  function buscarTexto(texto) {
+    st.txtBusca = texto;
     st.aciertos = [];
     st.acierto = -1;
-    const b = q.trim().toLowerCase();
+    const b = texto.trim().toLowerCase();
     if (b) {
       st.minus ||= st.lineas.map((l) => l.toLowerCase());
       st.minus.forEach((l, i) => { if (l.includes(b)) st.aciertos.push(i); });
@@ -774,10 +776,12 @@ export function crearLector(raiz, opciones = {}) {
     if (st.pestana !== 'texto') { st.pestana = 'texto'; pintar(); } else centrar(i);
   }
 
-  function tamano() {
-    if (!visible()) return;
+  // al cambiar de tamaño o al volver a su pestaña: solo se redibuja lo que depende del tamaño (gráficas y líneas del
+  // texto); las tablas y el texto conservan por dónde se iba
+  function ajustar() {
     if (st.pestana === 'texto') pintarLineas(); else if (st.R && ['resumen', 'resultados'].includes(st.pestana)) pintar();
   }
+  function tamano() { if (visible()) ajustar(); }
   function teclas(e) {
     if (!visible() || !st.R) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
@@ -796,5 +800,5 @@ export function crearLector(raiz, opciones = {}) {
   }
 
   montar();
-  return { cargar, destruir, repintar: () => { if (st.R) pintar(); }, get nombre() { return st.nombre; } };
+  return { cargar, destruir, repintar: ajustar, get nombre() { return st.nombre; } };
 }
