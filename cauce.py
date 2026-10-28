@@ -687,6 +687,15 @@ def api_post(ruta, cuerpo):
             tol = cuerpo.get('tolerancia')
             d.hallazgos = diagnostico.revisar(d.modelo, float(tol) if tol is not None else None, CONV)
         return {'hallazgos': d.hallazgos}
+    if accion == 'reporte':
+        # generador de reportes: corre el modelo (con su escenario) y deja el .rpt con lo pedido en [REPORT]
+        ruta = str(cuerpo.get('ruta', '')).strip()
+        if not os.path.isabs(ruta) or not ruta.lower().endswith(('.rpt', '.txt')):
+            raise ErrorApi(400, 'Escribe la ruta completa del reporte, terminada en .rpt.')
+        if os.path.exists(ruta) and not cuerpo.get('sobrescribir'):
+            raise ErrorApi(409, f'Ya existe {os.path.basename(ruta)} en esa carpeta. Si sigues, se reemplaza por el reporte nuevo.')
+        rep = motor.Reporte(d.texto, ruta, cuerpo.get('motor', '2.2'), cuerpo.get('opciones') or {})
+        return {'trabajo': lanzar('reporte', d, rep.correr, rep)}
     if accion == 'correr':
         return {'trabajo': iniciar_corrida(d, cuerpo.get('motor', '2.3'), bool(cuerpo.get('estados', True)),
                                            bool(cuerpo.get('calidad', True)))}

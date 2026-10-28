@@ -1,7 +1,8 @@
 // Panel Informes: perfil entre dos nudos, frecuencia, flujo del sistema, tablas exportables y energía, sobre la
 // corrida activa. También la edición en grupo (desde una tabla filtrada o desde un área del mapa).
-import { S, bus, get, post, binario, esc, n, h, hora, aviso, fallo, modal, formulario, explorar, conjunto, esqueleto, $, $$, U, nombreCalidad, claseTexto, elegirReporte } from './estado.js';
+import { S, bus, get, post, binario, esc, n, h, hora, aviso, fallo, modal, formulario, explorar, conjunto, esqueleto, $, $$, U, nombreCalidad, claseTexto } from './estado.js';
 import { mapa } from './mapa.js';
+import { elegirReporte } from './reporte.js';
 import { grafica, ajustarCanvas } from './grafica.js';
 
 const P = () => document.getElementById('panel');

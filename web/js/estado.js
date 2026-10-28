@@ -131,32 +131,21 @@ export function nuevaVentana(ruta, titulo = 'Cauce') {
   if (!w) aviso('El navegador bloqueó la ventana nueva: permite las ventanas emergentes de Cauce.', 'error');
 }
 
-// el lector de reportes de EPANET, en otra ventana: de una corrida en memoria o de un .rpt del disco
-export function abrirReporte({ corrida = '', ruta = '', doc = '', nombre = '' } = {}) {
-  const q = new URLSearchParams();
-  if (corrida) q.set('corrida', corrida);
-  if (ruta) q.set('ruta', ruta);
-  if (doc) q.set('doc', doc);
-  if (nombre) q.set('nombre', nombre);
-  nuevaVentana(`rpt.html?${q}`, `${nombre || (ruta ? ruta.split('\\').pop() : 'Reporte')} · Reporte de EPANET`);
-}
-export async function elegirReporte(doc = '') {
-  const r = await explorar({ titulo: 'Leer un reporte de EPANET (.rpt)', filtro: ['.rpt', '.txt', '.log'] });
-  if (r) abrirReporte({ ruta: r, doc });
-}
-
 // ---------------------------------------------------------------- ventanas
 let salidaModal = null, abierta = null;
-export function modal({ titulo, cuerpo, botones = [], chico = false, alCerrar }) {
+export function modal({ titulo, cuerpo, botones = [], chico = false, grande = false, alCerrar }) {
   const capa = $('#capa-modal');
   if (abierta) abierta();         // una ventana nueva reemplaza a la que estuviera abierta
   clearTimeout(salidaModal); capa.classList.remove('saliendo');
   capa.innerHTML = '';
-  const m = h(`<div class="modal ${chico ? 'chico' : ''}" role="dialog" aria-modal="true">
+  const m = h(`<div class="modal ${chico ? 'chico' : ''} ${grande ? 'grande' : ''}" role="dialog" aria-modal="true">
     <header><h2>${esc(titulo)}</h2><button class="x" aria-label="Cerrar">×</button></header>
     <div class="cont"></div><footer></footer></div>`);
   const cont = $('.cont', m);
   if (typeof cuerpo === 'string') cont.innerHTML = cuerpo; else if (cuerpo) cont.append(cuerpo);
+  // los archivos del explorador se abren con un clic: el segundo de un doble clic cae aquí y no debe seleccionar texto
+  const desde = performance.now();
+  m.addEventListener('mousedown', (e) => { if (e.detail > 1 && performance.now() - desde < 700) e.preventDefault(); });
   let cerrada = false;
   const soltar = () => {
     if (cerrada) return; cerrada = true;

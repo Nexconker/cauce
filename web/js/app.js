@@ -1,6 +1,7 @@
 // Arranque de Cauce: pestañas de modelos, bienvenida, buscador, barra de tiempo y herramientas de edición.
-import { S, bus, get, post, esc, n, h, hora, aviso, fallo, modal, formulario, explorar, $, $$, nombreNudo, nombreTramo, claseTexto, U, nombreEscenario, nombreCalidad, longitudAuto, elegirReporte } from './estado.js';
+import { S, bus, get, post, esc, n, h, hora, aviso, fallo, modal, formulario, explorar, $, $$, nombreNudo, nombreTramo, claseTexto, U, nombreEscenario, nombreCalidad, longitudAuto } from './estado.js';
 import { mapa, leyenda } from './mapa.js';
+import { elegirReporte } from './reporte.js';
 import { mostrarPanel, panelActual, revisar, usarCorrida, cargarVariable, quitarResaltado, guardar } from './paneles.js';
 import { mostrarInspector, cerrarInspector } from './inspector.js';
 import { edicionGrupo } from './informes.js';

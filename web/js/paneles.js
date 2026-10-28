@@ -1,6 +1,8 @@
 // Paneles de la izquierda: Modelo, Revisión, Correr, Escenario, Consignas, Comparar y Glosario.
-import { S, bus, get, post, binario, esc, n, h, hora, aviso, fallo, modal, formulario, explorar, conjunto, esqueleto, u, U, $, $$, nombreNudo, nombreEscenario, nombreCalidad, describir, textoScn, abrirReporte } from './estado.js';
+import { S, bus, get, post, binario, esc, n, h, hora, aviso, fallo, modal, formulario, explorar, conjunto, esqueleto, u, U, $, $$, nombreNudo, nombreEscenario, nombreCalidad, describir, textoScn } from './estado.js';
 import { mapa } from './mapa.js';
+import { abrirReporte } from './reporte.js';
+import { pReportes } from './reportes.js';
 import { grafica, barras } from './grafica.js';
 import { pDatos } from './datos.js';
 import { pInformes } from './informes.js';
@@ -12,12 +14,12 @@ export let panelActual = 'modelo';
 export function mostrarPanel(nombre) {
   panelActual = nombre || panelActual;
   $$('#rail button').forEach((b) => b.classList.toggle('activo', b.dataset.panel === panelActual));
-  const f = { modelo: pModelo, revision: pRevision, correr: pCorrer, escenario: pEscenario, datos: pDatos, consignas: pConsignas, comparar: pComparar, informes: pInformes, scripts: pScripts, glosario: pGlosario, ajustes: pAjustes }[panelActual];
+  const f = { modelo: pModelo, revision: pRevision, correr: pCorrer, escenario: pEscenario, datos: pDatos, consignas: pConsignas, comparar: pComparar, informes: pInformes, reportes: pReportes, scripts: pScripts, glosario: pGlosario, ajustes: pAjustes }[panelActual];
   document.getElementById('herramientas').hidden = !(S.M && S.editando);
   // el código y las tablas de los informes necesitan más ancho; «Ampliar» (todo el ancho) es solo de Informes
   document.body.classList.toggle('panel-ancho', ['scripts', 'informes'].includes(panelActual));
   if (panelActual !== 'informes') document.body.classList.remove('panel-amplio');
-  if (!S.M && !['glosario', 'ajustes'].includes(panelActual)) { P().innerHTML = '<h1>Ningún modelo abierto</h1><p class="sub">Abre un .inp para empezar.</p>'; return; }
+  if (!S.M && !['glosario', 'ajustes', 'reportes'].includes(panelActual)) { P().innerHTML = '<h1>Ningún modelo abierto</h1><p class="sub">Abre un .inp para empezar.</p>'; return; }
   f();
 }
 
@@ -82,7 +84,9 @@ async function pModelo() {
     modal({ titulo: `${I.nombre} · ${I.escenario}`, cuerpo: `<p class="sub">${n(r.largo, 0)} caracteres${r.largo > 200000 ? ' (se muestran los primeros 200.000)' : ''}.</p><div class="texto-inp">${esc(r.texto)}</div>` });
   };
   $('[data-a=cerrar]', acc).onclick = () => bus.emit('cerrar-doc', S.doc);
-  P().append(await seccionFondo());
+  const fondo = await seccionFondo();
+  if (panelActual !== 'modelo') return;      // se cambió de panel mientras llegaba: lo que falta no va en el otro
+  P().append(fondo);
   if (I.avisos?.length) P().append(h(`<div class="tarjeta aviso"><h3>Al armar el escenario</h3>${I.avisos.slice(0, 12).map((a) => `<p>${esc(a)}</p>`).join('')}</div>`));
   const lista = h(`<div class="sec"><div class="eti">Escenarios guardados</div>${esqueleto(2)}</div>`);
   P().append(lista);

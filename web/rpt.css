@@ -1,24 +1,41 @@
-/* Lector de reportes de EPANET: la misma identidad que la ventana principal (estilo.css), en una página propia. */
-body.rpt { display: grid; grid-template-rows: 48px auto minmax(0, 1fr); height: 100vh; }
-#rbarra { display: flex; align-items: center; gap: 14px; padding: 0 12px 0 14px; background: var(--panel); border-bottom: 1px solid var(--linea); min-width: 0; }
+/* Lector de reportes de EPANET: dentro de una ventana grande de Cauce (.modal.grande) o suelto en rpt.html, con la
+   misma identidad que la ventana principal (estilo.css). */
+
+/* ---------------------------------------------------------------- dónde vive */
+.modal.grande { width: min(1480px, 96vw); height: min(92vh, 1100px); max-height: 92vh; }
+.modal.grande .cont { padding: 0; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+body.rpt { display: grid; grid-template-rows: 48px minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); height: 100vh; }
+#rbarra { display: flex; align-items: center; padding: 0 12px 0 14px; background: var(--panel); border-bottom: 1px solid var(--linea); }
 #rbarra .marca { cursor: default; }
-#r-titulo { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
-#r-titulo b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#r-titulo span { font-size: 11.5px; color: var(--apagado); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#r-modelo { max-width: 220px; }
+#lector { min-height: 0; }
 
-#rtabs { display: flex; gap: 2px; padding: 0 12px; background: var(--panel); border-bottom: 1px solid var(--linea); overflow-x: auto; }
-#rtabs button { position: relative; border: 0; background: transparent; color: var(--tinta-2); padding: 10px 12px; cursor: pointer; white-space: nowrap; font-weight: 500;
+/* botón para volver al reporte después de ver un elemento en el mapa */
+.volver-reporte { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: var(--z-control); display: flex; gap: 6px;
+  padding: 6px; background: var(--panel); border: 1px solid var(--linea-2); border-radius: var(--r-2); box-shadow: var(--sombra-baja); }
+body:not(.sin-modelo) .volver-reporte { bottom: 78px; }
+
+/* ---------------------------------------------------------------- el lector */
+.lector { position: relative; display: flex; flex-direction: column; flex: 1; height: 100%; min-height: 0; }
+.l-cab { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--linea); min-width: 0; }
+.l-titulo { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.l-titulo b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.l-titulo span { font-size: 11.5px; color: var(--apagado); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.l-der { display: flex; align-items: center; gap: 8px; flex: none; }
+.l-modelo { max-width: 220px; }
+.l-tabs { display: flex; gap: 2px; padding: 0 10px; border-bottom: 1px solid var(--linea); overflow-x: auto; flex: none; }
+.l-tabs button { position: relative; border: 0; background: transparent; color: var(--tinta-2); padding: 9px 12px; cursor: pointer; white-space: nowrap; font-weight: 500;
   transition: color 150ms ease; }
-#rtabs button::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px; border-radius: 2px 2px 0 0; background: var(--acento);
+.l-tabs button::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px; border-radius: 2px 2px 0 0; background: var(--acento);
   transform: scaleX(0); transition: transform 200ms var(--ease-out); }
-#rtabs button.on { color: var(--tinta); }
-#rtabs button.on::after { transform: scaleX(1); }
-#rtabs button .c { margin-left: 6px; font-family: var(--mono); font-size: 11px; color: var(--apagado); }
-@media (hover: hover) and (pointer: fine) { #rtabs button:hover { color: var(--tinta); } }
+.l-tabs button.on { color: var(--tinta); }
+.l-tabs button.on::after { transform: scaleX(1); }
+.l-tabs button .c { margin-left: 6px; font-family: var(--mono); font-size: 11px; color: var(--apagado); }
+@media (hover: hover) and (pointer: fine) { .l-tabs button:hover { color: var(--tinta); } }
+.l-cuerpo { flex: 1; overflow: auto; padding: 16px 20px 26px; min-height: 0; }
+.l-cuerpo.lleno { overflow: hidden; display: flex; flex-direction: column; padding-bottom: 14px; }
+.lector.soltando::after { content: "Suelta el reporte .rpt para leerlo"; position: absolute; inset: 8px; z-index: 5; display: grid; place-items: center; font-size: 16px;
+  font-weight: 600; color: var(--tinta); background: rgba(8, 4, 4, .78); border: 2px dashed var(--acento-texto); border-radius: var(--r-3); pointer-events: none; }
 
-#rcuerpo { overflow: auto; padding: 18px 22px 30px; min-height: 0; }
-#rcuerpo.lleno { overflow: hidden; display: flex; flex-direction: column; padding-bottom: 14px; }
 .r-sec { margin-top: 22px; }
 .r-sec > .eti { margin-bottom: 8px; display: flex; align-items: baseline; gap: 10px; }
 .r-sec > .eti .sub { font-weight: 400; color: var(--apagado); font-size: 12px; }
@@ -47,17 +64,17 @@ body.rpt { display: grid; grid-template-rows: 48px auto minmax(0, 1fr); height: 
 .r-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0 10px; }
 .r-filtros input[type=search], .r-filtros input:not([type]) { width: 280px; }
 .r-filtros .der { margin-left: auto; display: flex; gap: 8px; align-items: center; }
-input.r-in, .r-filtros input, .r-tbarra input, #rcuerpo select { background: var(--bg); border: 1px solid var(--linea-2); border-radius: var(--r-1); padding: 5px 9px; }
+.lector input.r-in, .r-filtros input, .r-tbarra input, .l-cuerpo select { background: var(--bg); border: 1px solid var(--linea-2); border-radius: var(--r-1); padding: 5px 9px; }
 
 .r-tabla { max-height: none; }
-.tabla th.orden { cursor: pointer; user-select: none; }
-.tabla th.orden:hover { color: var(--tinta); }
-.tabla th .fl { color: var(--acento-texto); margin-left: 3px; }
-.tabla td .com { display: block; color: var(--apagado); font-size: 11.5px; white-space: normal; }
-.tabla td.acc { white-space: nowrap; text-align: right; }
-.tabla td.acc .btn + .btn { margin-left: 4px; }
-.tabla tr.abierta td { background: var(--panel-3); }
-.tabla tr.det td { background: var(--panel-3); padding: 8px 10px 12px; }
+.lector .tabla th.orden { cursor: pointer; user-select: none; }
+.lector .tabla th.orden:hover { color: var(--tinta); }
+.lector .tabla th .fl { color: var(--acento-texto); margin-left: 3px; }
+.lector .tabla td .com { display: block; color: var(--apagado); font-size: 11.5px; white-space: normal; }
+.lector .tabla td.acc { white-space: nowrap; text-align: right; }
+.lector .tabla td.acc .btn + .btn { margin-left: 4px; }
+.lector .tabla tr.abierta td { background: var(--panel-3); }
+.lector .tabla tr.det td { background: var(--panel-3); padding: 8px 10px 12px; }
 .r-horas { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .r-horas span { font-family: var(--mono); font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--bg); color: var(--tinta-2); }
 .r-mas { margin-top: 10px; }
@@ -101,12 +118,21 @@ input.r-in, .r-filtros input, .r-tbarra input, #rcuerpo select { background: var
 .r-res .tabla-caja { max-height: 520px; }
 .r-res canvas { width: 100%; height: 200px; display: block; }
 
-.r-vacio { max-width: 640px; margin: 8vh auto 0; text-align: center; }
+.r-vacio { max-width: 640px; margin: 6vh auto 0; text-align: center; }
 .r-vacio h1 { font-size: 20px; font-weight: 600; letter-spacing: -.01em; margin: 0 0 8px; }
 .r-vacio p { color: var(--tinta-2); margin: 0 0 18px; }
 .r-vacio .zona { border: 1.5px dashed var(--linea-2); border-radius: var(--r-3); padding: 34px 20px; color: var(--apagado); margin-bottom: 18px; }
 .r-vacio .acciones { display: flex; gap: 8px; justify-content: center; }
-#r-soltar { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(8, 4, 4, .72); display: grid; place-items: center; pointer-events: none; }
-#r-soltar div { border: 2px dashed var(--acento-texto); border-radius: var(--r-3); padding: 40px 60px; font-size: 16px; font-weight: 600; background: var(--panel); }
-.r-cargando { max-width: 520px; margin: 10vh auto 0; color: var(--tinta-2); text-align: center; }
+.r-cargando { max-width: 520px; margin: 8vh auto 0; color: var(--tinta-2); text-align: center; }
 .r-cargando .esq { margin-top: 18px; }
+
+/* ---------------------------------------------------------------- panel Reportes (generador) */
+.g-vars { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 4px 0 10px; }
+.g-vars .chk { margin: 0; }
+.g-ruta { display: flex; gap: 6px; }
+.g-ruta input { flex: 1; min-width: 0; }
+.g-prog { margin-top: 10px; font-size: 12px; color: var(--tinta-2); }
+.g-prog .barra { height: 4px; border-radius: 2px; background: var(--panel-3); overflow: hidden; margin-top: 6px; }
+.g-prog .barra i { display: block; height: 100%; width: 30%; background: var(--acento); border-radius: 2px; animation: g-ir 1.2s var(--ease-in-out) infinite; }
+@keyframes g-ir { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+@media (prefers-reduced-motion: reduce) { .g-prog .barra i { animation: none; width: 100%; opacity: .5; } }

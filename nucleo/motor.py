@@ -12,6 +12,7 @@ import ctypes as C
 import math
 import os
 import re
+import shutil
 import tempfile
 import threading
 import time
@@ -532,3 +533,90 @@ def caudales_medios(texto, version='2.3'):
         return {'unidades': unid, 'nudos': nudos, 'tramos': tramos, 'aviso': r if r else 0}
     finally:
         p.cerrar()
+
+
+# ====================================================================== generador de reportes (.rpt)
+# Palabras de [REPORT] para las variables de las tablas de resultados. El estado de cada tramo es «State»: el manual dice
+# «Position», pero la librería lo rechaza (error 201), y «Status» lo toma por la orden del reporte de estados.
+VARIABLES_REPORTE = ('Elevation', 'Demand', 'Head', 'Pressure', 'Quality', 'Length', 'Diameter', 'Flow', 'Velocity', 'Headloss',
+                     'State', 'Setting', 'Reaction', 'F-Factor')
+
+
+def con_reporte(texto, op):
+    """El .inp con la sección [REPORT] que pide el generador de reportes; lo demás queda igual."""
+    estado = {'no': 'No', 'si': 'Yes', 'completo': 'Full'}.get(op.get('estados', 'si'), 'Yes')
+    filas = ['[REPORT]', f' Status\t{estado}', f" Summary\t{'Yes' if op.get('resumen', True) else 'No'}",
+             f" Energy\t{'Yes' if op.get('energia') else 'No'}", ' Messages\tYes', f" Page\t{int(op.get('pagina') or 0)}"]
+    for clave, palabra in (('nudos', 'Nodes'), ('tramos', 'Links')):
+        v = op.get(clave, 'none')
+        if isinstance(v, list):
+            ids = [str(x).strip() for x in v if str(x).strip()]
+            filas += [f' {palabra}\t' + ' '.join(ids[k:k + 20]) for k in range(0, len(ids), 20)] or [f' {palabra}\tNone']
+        else:
+            filas.append(f" {palabra}\t{'All' if v == 'all' else 'None'}")
+    pedidas = set(op.get('variables') or [])
+    filas += [f" {v}\t{'Yes' if v in pedidas else 'No'}" for v in VARIABLES_REPORTE] + ['']
+    out, dentro, hecho = [], False, False
+    for l in texto.splitlines():
+        s = l.strip().upper()
+        if s.startswith('['):
+            dentro = False
+            if s.startswith('[REPORT]'):
+                out += filas
+                dentro = hecho = True
+                continue
+            if s.startswith('[END]') and not hecho:
+                out += filas
+                hecho = True
+        if not dentro:
+            out.append(l)
+    if not hecho:
+        out += filas
+    return '\n'.join(out) + '\n'
+
+
+class Reporte:
+    """Corre el modelo entero con EN_runproject y deja el reporte de EPANET (.rpt) donde se pida."""
+
+    def __init__(self, texto, ruta, version='2.2', opciones=None):
+        self.texto, self.ruta, self.version, self.op = texto, ruta, version, dict(opciones or {})
+        self.mensaje = 'preparando el modelo'
+        self.t0 = time.perf_counter()
+
+    def progreso(self):
+        return {'texto': self.mensaje, 'segundos': round(time.perf_counter() - self.t0, 1)}
+
+    def correr(self):
+        carpeta = os.path.dirname(self.ruta)
+        if carpeta and not os.path.isdir(carpeta):
+            raise ValueError(f'No existe la carpeta {carpeta}')
+        tmp, inp = _escribir_temporal(con_reporte(self.texto, self.op))
+        p = Proyecto(self.version)
+
+        def avance(m):
+            try:
+                t = (m or b'').decode('latin-1').strip()
+            except Exception:
+                return
+            hora = re.search(r'\d+:\d\d(:\d\d)?', t)
+            for ingles, espanol in (('Computing hydraulics', 'calculando la hidráulica'), ('Computing water quality', 'calculando la calidad del agua')):
+                if t.startswith(ingles):
+                    t = f'{espanol}, hora {hora.group(0)}' if hora else espanol
+            if t.startswith(('Writing', 'Transferring')):
+                t = 'escribiendo el reporte'
+            self.mensaje = t or self.mensaje
+        cb = C.WINFUNCTYPE(None, C.c_char_p)(avance)      # EPANET avisa por aquí cada hora que calcula
+        try:
+            cod = p.d.EN_runproject(p.ph, inp.encode('mbcs'), self.ruta.encode('mbcs'), os.path.join(tmp, 'r.out').encode('mbcs'), cb)
+        finally:
+            p.d.EN_deleteproject(p.ph)
+            shutil.rmtree(tmp, ignore_errors=True)
+        texto = open(self.ruta, encoding='latin-1', errors='replace').read() if os.path.exists(self.ruta) else ''
+        if cod > 100:
+            # cada error de lectura va seguido de la línea del .inp que lo causó
+            ls = [l.strip() for l in texto.splitlines()]
+            errores = [l + (f' «{ls[k + 1]}»' if k + 1 < len(ls) and ls[k + 1] and not ls[k + 1].startswith('Error') else '')
+                       for k, l in enumerate(ls) if l.startswith('Error') and not l.startswith(f'Error {cod}:')][:5]
+            raise ErrorMotor(cod, p.msg(cod) + (': ' + ' · '.join(errores) if errores else ''))
+        return {'ruta': self.ruta, 'kb': round(os.path.getsize(self.ruta) / 1024), 'segundos': round(time.perf_counter() - self.t0, 1),
+                'avisos': texto.count('WARNING'), 'lineas': texto.count('\n'), 'codigo': cod}

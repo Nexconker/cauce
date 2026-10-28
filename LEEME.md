@@ -71,14 +71,20 @@ Excel).
   orden y exportación a CSV para Excel, y el informe de energía. El panel abre ancho y **Ampliar** lo lleva a todo
   el ancho (el mapa vuelve al reducir); las tablas tienen su propio scroll con el encabezado y la primera columna
   fijos y muestran hasta 1.500 filas (el CSV las lleva todas).
-- **Lector de reportes .rpt** (en otra ventana): «Leer el reporte de EPANET» en Correr abre el de la corrida que se
-  está viendo; «Leer un .rpt» en Informes o en el inicio abre cualquier reporte del disco (también el de EPANET de
-  escritorio), y se le puede soltar un archivo encima. Trae un resumen con los avisos por hora y por tipo, los avisos
-  agrupados por elemento (veces, horas, primera y última, copiar para Excel), el paso a paso con los avisos y cambios
-  de estado de cada paso, las tablas de resultados si el reporte las tiene (cada nudo o tramo hora a hora y los más
-  bajos o altos de cada variable) y el texto completo con buscador y saltos a cada sección. Con un modelo abierto
-  relacionado, cada elemento sale con su nombre y el botón **Mapa** lo muestra en la ventana principal. Lee reportes
-  de decenas de MB sin congelar la ventana.
+- **Reportes de EPANET (.rpt)**, con su botón en la barra de la izquierda:
+  - **Generar el reporte** del modelo abierto, con su escenario: motor 2.2 o 2.3, estado de cada paso (no, sí o
+    completo con las iteraciones), resumen, energía, nudos y tramos (todos, ninguno o una lista de ID) y las
+    variables de cada tabla. Corre aparte mostrando la hora que va calculando, pregunta antes de reemplazar un .rpt
+    que ya exista y guarda los últimos generados para volver a leerlos.
+  - **Leerlo** en una ventana grande de Cauce. «Leer el reporte de EPANET» en Correr abre el de la corrida que se
+    está viendo; «Leer un .rpt» en Informes, en el inicio o en Reportes abre cualquier reporte del disco (también el
+    de EPANET de escritorio), y se le puede soltar un archivo encima. Trae un resumen con los avisos por hora y por
+    tipo, los avisos agrupados por elemento (veces, horas, primera y última, copiar para Excel), el paso a paso con
+    los avisos y cambios de estado de cada paso, las tablas de resultados si el reporte las tiene (cada nudo o tramo
+    hora a hora y los más bajos o altos de cada variable) y el texto completo con buscador y saltos a cada sección.
+    Con un modelo abierto relacionado, cada elemento sale con su nombre y el botón **Mapa** lo muestra en el mapa;
+    «Volver al reporte» lo deja como estaba. «En otra ventana» lo saca a una ventana aparte, para otra pantalla.
+    Lee reportes de decenas de MB sin congelar la app.
 - **Edición en grupo**: desde una tabla filtrada o encerrando un área del mapa (herramienta Área): poner,
   multiplicar o sumar diámetro, rugosidad, pérdida menor, longitud, estado, cota, demanda, patrón o etiqueta.
 - **Mapa de fondo**: un plano o una foto aérea debajo de la red, ubicada con las coordenadas del modelo (en el

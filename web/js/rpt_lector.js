@@ -38,8 +38,13 @@ const REGLAS = [
 const NOMBRE_COL = {
   demand: 'Demanda', head: 'Carga', pressure: 'Presión', quality: 'Calidad', flow: 'Caudal', velocity: 'Velocidad',
   'unit headloss': 'Pérdida unitaria', headloss: 'Pérdida', 'friction factor': 'Factor de fricción', 'reaction rate': 'Reacción',
-  setting: 'Consigna', status: 'Estado',
+  setting: 'Consigna', status: 'Estado', elevation: 'Cota', length: 'Longitud', diameter: 'Diámetro', reaction: 'Reacción',
+  'f-factor': 'Factor de fricción',
 };
+// columnas que no llevan unidad: en la fila de unidades dejan un hueco que la partición por espacios no ve
+const SIN_UNIDAD = new Set(['status', 'setting', 'f-factor', 'friction factor']);
+const ESTADO_TRAMO = { open: 'abierto', closed: 'cerrado', active: 'activo' };
+const estadoTramo = (pal) => pal.filter(Boolean).map((w, i) => (i === 0 ? ESTADO_TRAMO[w.toLowerCase()] || w : w)).join(' · ');
 const MESES = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
 
 const segundos = (h, m, s) => (+h) * 3600 + (+m) * 60 + (+(s || 0));
@@ -56,10 +61,12 @@ function columnas(cab, unidades) {
   const cols = [];
   for (let i = 0; i < pal.length; i++) {
     const dos = `${pal[i]} ${pal[i + 1] || ''}`.toLowerCase();
-    if (dos in NOMBRE_COL) { cols.push(dos); i++; } else cols.push(pal[i].toLowerCase());
+    if (dos in NOMBRE_COL) { cols.push(dos); i++; } else cols.push(pal[i].toLowerCase() === 'state' ? 'status' : pal[i].toLowerCase());     // la librería lo llama State
   }
-  const u = unidades.replace(/^\s*ID\s*/, '').split(/\s+/).filter(Boolean);
-  return cols.map((c, j) => ({ clave: c, nombre: NOMBRE_COL[c] || c, unidad: c === 'status' ? '' : (u[j] || '') }));
+  // la fila de unidades empieza por «ID» en el reporte de la interfaz y por «Node»/«Link» en el de la librería
+  const u = unidades.replace(/^\s*(ID|Node|Link)\b\s*/, '').split(/\s+/).filter(Boolean);
+  let ui = 0;
+  return cols.map((c) => ({ clave: c, nombre: NOMBRE_COL[c] || c, unidad: SIN_UNIDAD.has(c) ? '' : (u[ui++] || '') }));
 }
 
 export function leerReporte(texto) {
@@ -85,10 +92,11 @@ export function leerReporte(texto) {
     if (/^Page \d+/.test(s)) { if (!R.meta.titulo) { const m = /Scenario:\s*(.*)$/.exec(s); if (m) R.meta.titulo = m[1].trim(); } continue; }
 
     // tablas de resultados: cabecera, unidades y filas
-    let m = /^(Node|Link) Results at (\d+):(\d\d)(?::(\d\d))?\s*[Hh]rs:?\s*(\(continued\))?/.exec(s);
+    // (una corrida de un solo instante escribe «Node Results:», sin hora)
+    let m = /^(Node|Link) Results(?: at (\d+):(\d\d)(?::(\d\d))?\s*[Hh]rs)?:?\s*(\(continued\))?$/.exec(s);
     if (m) {
       const clase = m[1] === 'Node' ? 'nudo' : 'tramo';
-      const t = segundos(m[2], m[3], m[4]);
+      const t = m[2] ? segundos(m[2], m[3], m[4]) : 0;
       const T = nuevaTabla(clase);
       if (!T.tIdx.has(t)) { T.tIdx.set(t, T.horas.length); T.horas.push(t); }
       if (!m[5]) R.secciones.push({ tipo: clase === 'nudo' ? 'Resultados de nudos' : 'Resultados de tramos', t, linea: i });
@@ -106,7 +114,8 @@ export function leerReporte(texto) {
       let k = T.idx.get(p[0]);
       if (k === undefined) { k = T.ids.length; T.idx.set(p[0], k); T.ids.push(p[0]); }
       cols.forEach((c, ci) => {
-        if (c.clave === 'status') { (T.estados[tabla.j] ||= [])[k] = p.slice(1 + ci).join(' '); return; }
+        // el estado es una palabra; si es la última columna se le suma el tipo que EPANET pone detrás (PRV, Pump...)
+        if (c.clave === 'status') { (T.estados[tabla.j] ||= [])[k] = estadoTramo(ci === cols.length - 1 ? p.slice(1 + ci) : [p[1 + ci]]); return; }
         const v = parseFloat(p[1 + ci]);
         ((T.valores[ci] ||= [])[tabla.j] ||= [])[k] = Number.isFinite(v) ? v : null;
       });
